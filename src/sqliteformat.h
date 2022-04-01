@@ -32,7 +32,7 @@
 #define MKCAL_SQLITEFORMAT_H
 
 #include "mkcal_export.h"
-#include "extendedstorage.h"
+#include "storagebackend.h"
 #include "notebook.h"
 
 #include <KCalendarCore/Incidence>
@@ -82,7 +82,7 @@ public:
       @param stmt prepared sqlite statement for calendars table
       @return true if the operation was successful; false otherwise.
     */
-    bool modifyCalendars(const Notebook::Ptr &notebook, DBOperation dbop, sqlite3_stmt *stmt);
+    bool modifyCalendars(const Notebook::Ptr &notebook, StorageBackend::DBOperation dbop, sqlite3_stmt *stmt);
 
     /**
       Select notebooks from Calendars table.
@@ -101,7 +101,7 @@ public:
       @return true if the operation was successful; false otherwise.
     */
     bool modifyComponents(const KCalendarCore::Incidence::Ptr &incidence, const QString &notebook,
-                          DBOperation dbop);
+                          StorageBackend::DBOperation dbop);
 
     bool purgeDeletedComponents(const KCalendarCore::Incidence::Ptr &incidence);
 
