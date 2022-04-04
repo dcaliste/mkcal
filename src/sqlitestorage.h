@@ -322,7 +322,7 @@ public:
 
 protected:
     bool loadNotebooks(Notebook::List *notebooks);
-    bool modifyNotebook(const Notebook::Ptr &nb, StorageBackend::DBOperation dbop, bool signal = true);
+    bool modifyNotebook(const Notebook &nb, StorageBackend::DBOperation dbop, bool signal = true);
 
 private:
     //@cond PRIVATE

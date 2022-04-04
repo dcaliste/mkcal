@@ -82,7 +82,7 @@ public:
       @param stmt prepared sqlite statement for calendars table
       @return true if the operation was successful; false otherwise.
     */
-    bool modifyCalendars(const Notebook::Ptr &notebook, StorageBackend::DBOperation dbop, sqlite3_stmt *stmt);
+    bool modifyCalendars(const Notebook &notebook, StorageBackend::DBOperation dbop);
 
     /**
       Select notebooks from Calendars table.
@@ -90,7 +90,7 @@ public:
       @param stmt prepared sqlite statement for calendars table
       @return the queried notebook.
     */
-    Notebook::Ptr selectCalendars(sqlite3_stmt *stmt);
+    Notebook* selectCalendars(sqlite3_stmt *stmt);
 
     /**
       Update incidence data in Components table.
@@ -100,19 +100,19 @@ public:
       @param dbop database operation
       @return true if the operation was successful; false otherwise.
     */
-    bool modifyComponents(const KCalendarCore::Incidence::Ptr &incidence, const QString &notebook,
+    bool modifyComponents(const KCalendarCore::Incidence &incidence, const QString &notebook,
                           StorageBackend::DBOperation dbop);
 
-    bool purgeDeletedComponents(const KCalendarCore::Incidence::Ptr &incidence);
+    bool purgeDeletedComponents(const KCalendarCore::Incidence &incidence);
 
     /**
       Select incidences from Components table.
 
       @param stmt1 prepared sqlite statement for components table
       @param notebook notebook of incidence
-      @return the queried incidence.
+      @return the queried incidence, no ownership assumed.
     */
-    KCalendarCore::Incidence::Ptr selectComponents(sqlite3_stmt *stmt1, QString &notebook);
+    KCalendarCore::Incidence* selectComponents(sqlite3_stmt *stmt1, QString &notebook);
 
     /**
       Select contacts and order them by appearances.

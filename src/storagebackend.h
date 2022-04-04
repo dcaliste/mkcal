@@ -503,7 +503,7 @@ public:
       @param nb notebook
       @return true if operation was successful; false otherwise.
     */
-    virtual bool addNotebook(const Notebook::Ptr &nb);
+    bool addNotebook(const Notebook &nb);
 
     /**
       Update notebook parameters.
@@ -511,7 +511,7 @@ public:
       @param nb notebook
       @return true if add was successful; false otherwise.
     */
-    virtual bool updateNotebook(const Notebook::Ptr &nb);
+    bool updateNotebook(const Notebook &nb);
 
     /**
       Delete notebook from storage.
@@ -519,7 +519,7 @@ public:
       @param nb notebook
       @return true if delete was successful; false otherwise.
     */
-    virtual bool deleteNotebook(const Notebook::Ptr &nb);
+    bool deleteNotebook(const Notebook &nb);
 
     /**
       Creates a default notebook. The notebook is not added to the storage.
@@ -532,7 +532,7 @@ public:
                                                QString color = QString());
 
 protected:
-    virtual bool modifyNotebook(const Notebook::Ptr &nb, DBOperation dbop,
+    virtual bool modifyNotebook(const Notebook &nb, DBOperation dbop,
                                 bool signal = true) = 0;
     void setTimeZone(const QTimeZone &timeZone);
 

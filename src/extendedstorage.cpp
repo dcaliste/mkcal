@@ -329,7 +329,7 @@ bool ExtendedStorage::addNotebook(const Notebook::Ptr &nb)
         nb->setUid(uid.mid(1, uid.length() - 2));
     }
 
-    if (!StorageBackend::addNotebook(nb)) {
+    if (!StorageBackend::addNotebook(*nb)) {
         return false;
     }
 
@@ -349,7 +349,7 @@ bool ExtendedStorage::updateNotebook(const Notebook::Ptr &nb)
         return false;
     }
 
-    if (!StorageBackend::updateNotebook(nb)) {
+    if (!StorageBackend::updateNotebook(*nb)) {
         return false;
     }
 
@@ -367,7 +367,7 @@ bool ExtendedStorage::deleteNotebook(const Notebook::Ptr &nb)
         return false;
     }
 
-    if (!StorageBackend::deleteNotebook(nb)) {
+    if (!StorageBackend::deleteNotebook(*nb)) {
         return false;
     }
 
@@ -408,14 +408,14 @@ bool ExtendedStorage::setDefaultNotebook(const Notebook::Ptr &nb)
 
     if (d->mDefaultNotebook) {
         d->mDefaultNotebook->setIsDefault(false);
-        if (!modifyNotebook(d->mDefaultNotebook, DBUpdate, false)) {
+        if (!modifyNotebook(*d->mDefaultNotebook, DBUpdate, false)) {
             return false;
         }
     }
 
     d->mDefaultNotebook = nb;
     d->mDefaultNotebook->setIsDefault(true);
-    if (!modifyNotebook(d->mDefaultNotebook, DBUpdate)) {
+    if (!modifyNotebook(*d->mDefaultNotebook, DBUpdate)) {
         return false;
     }
 
