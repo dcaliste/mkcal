@@ -232,18 +232,6 @@ public:
 
     /**
       @copydoc
-      StorageBackend::storeIncidences(const StorageBackend::Collection &,
-                                      const StorageBackend::Collection &,
-                                      const StorageBackend::Collection &,
-                                      StorageBackend::DeleteAction)
-    */
-    bool storeIncidences(const StorageBackend::Collection &additions,
-                         const StorageBackend::Collection &modifications,
-                         const StorageBackend::Collection &deletions,
-                         StorageBackend::DeleteAction deleteAction);
-
-    /**
-      @copydoc
       StorageBackend::purgeDeletedIncidences(const KCalCore::Incidence::List &)
     */
     bool purgeDeletedIncidences(const KCalendarCore::Incidence::List &list);
@@ -322,7 +310,11 @@ public:
 
 protected:
     bool loadNotebooks(Notebook::List *notebooks);
-    bool modifyNotebook(const Notebook &nb, StorageBackend::DBOperation dbop, bool signal = true);
+    bool modifyNotebook(const Notebook &nb, StorageBackend::DBOperation dbop, bool signal = true) override;
+    bool modifyIncidences(const StorageBackend::Collection &additions,
+                          const StorageBackend::Collection &modifications,
+                          const StorageBackend::Collection &deletions,
+                          StorageBackend::DeleteAction deleteAction) override;
 
 private:
     //@cond PRIVATE

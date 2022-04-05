@@ -92,6 +92,7 @@ public:
     bool mIsInvitationIncidencesLoaded = false;
     bool mIsJournalsLoaded = false;
     QList<StorageBackend::Observer *> mObservers;
+    StorageBackend::Manager *mManager = nullptr;
 
 #if defined(TIMED_SUPPORT)
     QHash<QString, bool> mNotebookVisibility;
@@ -330,15 +331,64 @@ void StorageBackend::setIsInvitationIncidencesLoaded(bool loaded)
     d->mIsInvitationIncidencesLoaded = loaded;
 }
 
+bool StorageBackend::storeIncidences(const Collection &additions,
+                                     const Collection &modifications,
+                                     const Collection &deletions,
+                                     StorageBackend::DeleteAction deleteAction)
+{
+    bool success = modifyIncidences(additions, modifications, deletions, deleteAction);
+
+    qDeleteAll(additions);
+    qDeleteAll(modifications);
+    qDeleteAll(deletions);
+
+    return success;
+}
+
+bool StorageBackend::storeIncidences(const SharedCollection &additions,
+                                     const SharedCollection &modifications,
+                                     const SharedCollection &deletions,
+                                     StorageBackend::DeleteAction deleteAction)
+{
+    Collection cpAdditions;
+    for (SharedCollection::ConstIterator it = additions.constBegin();
+         it != additions.constEnd(); it++) {
+        cpAdditions.insert(it.key(), it->data());
+    }
+    Collection cpModifications;
+    for (SharedCollection::ConstIterator it = modifications.constBegin();
+         it != modifications.constEnd(); it++) {
+        cpModifications.insert(it.key(), it->data());
+    }
+    Collection cpDeletions;
+    for (SharedCollection::ConstIterator it = deletions.constBegin();
+         it != deletions.constEnd(); it++) {
+        cpDeletions.insert(it.key(), it->data());
+    }
+    return modifyIncidences(cpAdditions, cpModifications, cpDeletions, deleteAction);
+}
+
+StorageBackend::Manager::~Manager()
+{
+}
+
+void StorageBackend::registerManager(Manager *manager)
+{
+    d->mManager = manager;
+}
+
+void StorageBackend::unregisterManager()
+{
+    d->mManager = nullptr;
+}
+
 StorageBackend::Observer::~Observer()
 {
 }
 
-void StorageBackend::Observer::storageOpened(StorageBackend *storage,
-                                             const Notebook::List &notebooks)
+void StorageBackend::Observer::storageOpened(StorageBackend *storage)
 {
     Q_UNUSED(storage);
-    Q_UNUSED(notebooks);
 }
 
 void StorageBackend::Observer::storageClosed(StorageBackend *storage)
@@ -346,11 +396,9 @@ void StorageBackend::Observer::storageClosed(StorageBackend *storage)
     Q_UNUSED(storage);
 }
 
-void StorageBackend::Observer::storageModified(StorageBackend *storage,
-                                               const Notebook::List &notebooks)
+void StorageBackend::Observer::storageModified(StorageBackend *storage)
 {
     Q_UNUSED(storage);
-    Q_UNUSED(notebooks);
 }
 
 void StorageBackend::Observer::storageUpdated(StorageBackend *storage,
@@ -362,13 +410,6 @@ void StorageBackend::Observer::storageUpdated(StorageBackend *storage,
     Q_UNUSED(added);
     Q_UNUSED(modified);
     Q_UNUSED(deleted);
-}
-
-void StorageBackend::Observer::incidenceLoaded(StorageBackend *storage,
-                                               const StorageBackend::Collection &incidences)
-{
-    Q_UNUSED(storage);
-    Q_UNUSED(incidences);
 }
 
 void StorageBackend::registerObserver(StorageBackend::Observer *observer)
@@ -383,10 +424,10 @@ void StorageBackend::unregisterObserver(StorageBackend::Observer *observer)
     d->mObservers.removeAll(observer);
 }
 
-void StorageBackend::storageOpened(const Notebook::List &notebooks)
+void StorageBackend::storageOpened()
 {
     foreach (StorageBackend::Observer *observer, d->mObservers) {
-        observer->storageOpened(this, notebooks);
+        observer->storageOpened(this);
     }
 }
 
@@ -399,12 +440,12 @@ void StorageBackend::storageClosed()
     }
 }
 
-void StorageBackend::storageModified(const Notebook::List &notebooks)
+void StorageBackend::storageModified()
 {
     clearLoaded();
 
     foreach (StorageBackend::Observer *observer, d->mObservers) {
-        observer->storageModified(this, notebooks);
+        observer->storageModified(this);
     }
 }
 
@@ -426,10 +467,21 @@ void StorageBackend::storageUpdated(const StorageBackend::Collection &added,
     }
 }
 
-void StorageBackend::incidenceLoaded(const StorageBackend::Collection &incidences)
+void StorageBackend::newNotebooks(const StorageBackend::Library &notebooks)
 {
-    foreach (StorageBackend::Observer *observer, d->mObservers) {
-        observer->incidenceLoaded(this, incidences);
+    if (d->mManager) {
+        d->mManager->newNotebooks(this, notebooks);
+    } else {
+        qDeleteAll(notebooks);
+    }
+}
+
+void StorageBackend::newIncidences(const StorageBackend::Collection &incidences)
+{
+    if (d->mManager) {
+        d->mManager->newIncidences(this, incidences);
+    } else {
+        qDeleteAll(incidences);
     }
 }
 
@@ -481,7 +533,7 @@ bool StorageBackend::deleteNotebook(const Notebook &nb)
     return true;
 }
 
-Notebook::Ptr StorageBackend::createDefaultNotebook(QString name, QString color)
+Notebook* StorageBackend::createDefaultNotebook(QString name, QString color)
 {
     // Could use QUuid::WithoutBraces when moving to Qt5.11.
     const QString uid(QUuid::createUuid().toString());
@@ -489,9 +541,9 @@ Notebook::Ptr StorageBackend::createDefaultNotebook(QString name, QString color)
         name = "Default";
     if (color.isEmpty())
         color = "#0000FF";
-    Notebook::Ptr nbDefault(new Notebook(uid.mid(1, uid.length() - 2),
-                                         name, QString(), color,
-                                         false, true, false, false, true));
+    Notebook *nbDefault = new Notebook(uid.mid(1, uid.length() - 2),
+                                       name, QString(), color,
+                                       false, true, false, false, true);
     nbDefault->setIsDefault(true);
     return nbDefault;
 }
@@ -571,7 +623,7 @@ void StorageBackend::Private::clearAlarms(const Incidence &incidence)
 
 void StorageBackend::Private::clearAlarms(const StorageBackend::Collection &incidences)
 {
-    for (const Incidence::Ptr incidence : incidences) {
+    for (const Incidence *incidence : incidences) {
         clearAlarms(*incidence);
     }
 }
