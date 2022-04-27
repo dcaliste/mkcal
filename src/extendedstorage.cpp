@@ -561,7 +561,7 @@ bool ExtendedStorage::validateNotebooks()
     return d->mValidateNotebooks;
 }
 
-bool ExtendedStorage::isValidNotebook(const QString &notebookUid)
+bool ExtendedStorage::isWritableNotebook(const QString &notebookUid)
 {
     const Notebook &nb = notebook(notebookUid);
     if (nb.isValid()) {

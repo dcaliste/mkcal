@@ -97,7 +97,7 @@ bool ServiceHandlerPrivate::executePlugin(ExecutedPlugin action, const Incidence
         accountNotebook = notebook;
     } else {
         const QString notebookUid = calendar->notebook(invitation);
-        if (storage->isValidNotebook(notebookUid)) {
+        if (storage->isWritableNotebook(notebookUid)) {
             accountNotebook = storage->notebook(notebookUid);
         }
         if (!accountNotebook.isValid()) {
@@ -160,7 +160,7 @@ ServiceInterface *ServiceHandlerPrivate::getServicePlugin(const Notebook &notebo
     if (storage.isNull() || !notebook.isValid())
         return 0;
 
-    if (!storage->isValidNotebook(notebook.uid()))
+    if (!storage->isWritableNotebook(notebook.uid()))
         return 0;
 
     QString name(notebook.pluginName());

@@ -593,12 +593,12 @@ public:
 
     /**
       Returns true if the given notebook is valid for the storage.
-      That means that storage can load/save incidences on this notebook.
+      That means that storage can save incidences on this notebook.
 
       @param notebookUid notebook uid
       @return true or false
     */
-    bool isValidNotebook(const QString &notebookUid);
+    bool isWritableNotebook(const QString &notebookUid);
 
     // Alarm Methods //
 
