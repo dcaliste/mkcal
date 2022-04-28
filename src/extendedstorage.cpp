@@ -414,43 +414,22 @@ void ExtendedStorage::setUpdated(const KCalendarCore::Incidence::List &added,
 #endif
 }
 
-bool ExtendedStorage::addNotebook(const Notebook &nb)
+bool ExtendedStorage::storeNotebook(const Notebook &nb)
 {
-    if (d->mNotebooks.contains(nb.uid())) {
-        return false;
-    }
-
-    if (!nb.isRunTimeOnly() && !modifyNotebook(nb, DBInsert)) {
+    bool stored = d->mNotebooks.contains(nb.uid());
+    if (!nb.isRunTimeOnly() && !modifyNotebook(nb, stored ? DBUpdate : DBInsert)) {
         return false;
     }
     d->mNotebooks.insert(nb.uid(), nb);
 
+    bool wasVisible = stored && calendar()->isVisible(nb.uid());
     if (!calendar()->addNotebook(nb.uid(), nb.isVisible())
         && !calendar()->updateNotebook(nb.uid(), nb.isVisible())) {
-        qCWarning(lcMkcal) << "notebook" << nb.uid() << "already in calendar";
-    }
-
-    return true;
-}
-
-bool ExtendedStorage::updateNotebook(const Notebook &nb)
-{
-    if (!d->mNotebooks.contains(nb.uid())) {
-        return false;
-    }
-
-    if (!nb.isRunTimeOnly() && !modifyNotebook(nb, DBUpdate)) {
-        return false;
-    }
-    d->mNotebooks.insert(nb.uid(), nb);
-
-    bool wasVisible = calendar()->isVisible(nb.uid());
-    if (!calendar()->updateNotebook(nb.uid(), nb.isVisible())) {
-        qCWarning(lcMkcal) << "cannot update notebook" << nb.uid() << "in calendar";
+        qCWarning(lcMkcal) << "unable to set notebook" << nb.uid() << "in calendar";
     }
 
 #if defined(TIMED_SUPPORT)
-    if (!nb.isRunTimeOnly()) {
+    if (!nb.isRunTimeOnly() && stored) {
         if (wasVisible && !nb.isVisible()) {
             d->clearAlarms(nb.uid());
         } else if (!wasVisible && nb.isVisible()) {
@@ -463,6 +442,16 @@ bool ExtendedStorage::updateNotebook(const Notebook &nb)
 #endif
 
     return true;
+}
+
+bool ExtendedStorage::addNotebook(const Notebook &nb)
+{
+    return storeNotebook(nb);
+}
+
+bool ExtendedStorage::updateNotebook(const Notebook &nb)
+{
+    return storeNotebook(nb);
 }
 
 bool ExtendedStorage::deleteNotebook(const QString &nbid)

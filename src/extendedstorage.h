@@ -517,6 +517,15 @@ public:
     // Notebook Methods //
 
     /**
+      Add or update notebook to the storage.
+      Operation is executed immediately into storage.
+
+      @param nb notebook
+      @return true if operation was successful; false otherwise.
+    */
+    bool storeNotebook(const Notebook &nb);
+
+    /**
       Add new notebook to the storage.
       Operation is executed immediately into storage.
 
