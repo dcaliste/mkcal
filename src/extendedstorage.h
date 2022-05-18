@@ -119,7 +119,7 @@ public:
       @copydoc
       CalStorage::load()
     */
-    virtual bool load() = 0;
+    virtual bool load();
 
     /**
       Load incidence by uid into the memory.
@@ -128,7 +128,7 @@ public:
       @param recurrenceid is recurrenceid of incidence, default null
       @return true if the load was successful; false otherwise.
     */
-    virtual bool load(const QString &uid, const QDateTime &recurrenceId = QDateTime()) = 0;
+    virtual bool load(const QString &uid, const QDateTime &recurrenceId = QDateTime());
 
     /**
       Load incidences at given date into the memory. All incidences that
@@ -143,7 +143,7 @@ public:
       @param date date
       @return true if the load was successful; false otherwise.
     */
-    virtual bool load(const QDate &date) = 0;
+    virtual bool load(const QDate &date);
 
     /**
       Load incidences between given dates into the memory. start is inclusive,
@@ -154,7 +154,7 @@ public:
       @param end is the ending date, exclusive
       @return true if the load was successful; false otherwise.
     */
-    virtual bool load(const QDate &start, const QDate &end) = 0;
+    virtual bool load(const QDate &start, const QDate &end);
 
     /**
       Load all incidences sharing the same uid into the memory.
@@ -162,7 +162,7 @@ public:
       @param uid is uid of the series
       @return true if the load was successful; false otherwise.
     */
-    virtual bool loadSeries(const QString &uid) = 0;
+    virtual bool loadSeries(const QString &uid);
 
     /**
       Load the incidence matching the given identifier. This method may be
@@ -172,7 +172,7 @@ public:
       @param instanceIdentifier is an identifier returned by Incidence::instanceIdentifier()
       @return true if the load was successful; false otherwise.
     */
-    virtual bool loadIncidenceInstance(const QString &instanceIdentifier) = 0;
+    virtual bool loadIncidenceInstance(const QString &instanceIdentifier);
 
     /**
       Load incidences of one notebook into the memory.
@@ -180,33 +180,33 @@ public:
       @param notebookUid is uid of notebook
       @return true if the load was successful; false otherwise.
     */
-    virtual bool loadNotebookIncidences(const QString &notebookUid) = 0;
+    virtual bool loadNotebookIncidences(const QString &notebookUid);
 
     /**
       Load journal type entries
     */
-    virtual bool loadJournals() = 0;
+    virtual bool loadJournals();
 
     /**
       Load plain incidences (no startdate and no enddate).
 
       @return true if the load was successful; false otherwise.
     */
-    virtual bool loadPlainIncidences() = 0;
+    virtual bool loadPlainIncidences();
 
     /**
       Load recurring incidences.
 
       @return true if the load was successful; false otherwise.
     */
-    virtual bool loadRecurringIncidences() = 0;
+    virtual bool loadRecurringIncidences();
 
     /**
       Load incidences that have geo parameters.
 
       @return true if the load was successful; false otherwise.
     */
-    virtual bool loadGeoIncidences() = 0;
+    virtual bool loadGeoIncidences();
 
     /**
       Load incidences that have geo parameters inside given rectangle.
@@ -218,14 +218,14 @@ public:
       @return true if the load was successful; false otherwise.
     */
     virtual bool loadGeoIncidences(float geoLatitude, float geoLongitude,
-                                   float diffLatitude, float diffLongitude) = 0;
+                                   float diffLatitude, float diffLongitude);
 
     /**
       Load incidences that have attendee.
 
       @return true if the load was successful; false otherwise.
     */
-    virtual bool loadAttendeeIncidences() = 0;
+    virtual bool loadAttendeeIncidences();
 
     // Smart Loading Functions //
 
@@ -234,7 +234,7 @@ public:
 
       @return number of loaded todos, or -1 on error
     */
-    virtual int loadUncompletedTodos() = 0;
+    virtual int loadUncompletedTodos();
 
     /**
       Load completed todos based on parameters. Load direction is descending,
@@ -245,7 +245,7 @@ public:
       @param last last loaded todo due/creation date in return
       @return number of loaded todos, or -1 on error
     */
-    virtual int loadCompletedTodos(bool hasDate, int limit, QDateTime *last) = 0;
+    virtual int loadCompletedTodos(bool hasDate, int limit, QDateTime *last);
 
     /**
       Load incidences based on start/due date or creation date.
@@ -257,7 +257,7 @@ public:
       @param last last loaded incidence due/creation date in return
       @return number of loaded incidences, or -1 on error
     */
-    virtual int loadIncidences(bool hasDate, int limit, QDateTime *last) = 0;
+    virtual int loadIncidences(bool hasDate, int limit, QDateTime *last);
 
     /**
       Load future incidences based on start/due date.
@@ -270,7 +270,7 @@ public:
       @param last last loaded incidence start date in return
       @return number of loaded incidences, or -1 on error
     */
-    virtual int loadFutureIncidences(int limit, QDateTime *last) = 0;
+    virtual int loadFutureIncidences(int limit, QDateTime *last);
 
     /**
       Load incidences that have location information based on parameters.
@@ -282,7 +282,7 @@ public:
       @param last last loaded incidence due/creation date in return
       @return number of loaded incidences, or -1 on error
     */
-    virtual int loadGeoIncidences(bool hasDate, int limit, QDateTime *last) = 0;
+    virtual int loadGeoIncidences(bool hasDate, int limit, QDateTime *last);
 
     /**
       Load all contacts in the database. Doesn't put anything into calendar.
@@ -303,7 +303,7 @@ public:
       @return number of loaded incidences, or -1 on error
     */
     virtual int loadContactIncidences(const KCalendarCore::Person &person,
-                                      int limit, QDateTime *last) = 0;
+                                      int limit, QDateTime *last);
 
     /**
       Load journal entries based on parameters. Load direction is
@@ -314,7 +314,7 @@ public:
       @param last last loaded incidence due/creation date in return
       @return number of loaded incidences, or -1 on error
     */
-    virtual int loadJournals(int limit, QDateTime *last) = 0;
+    virtual int loadJournals(int limit, QDateTime *last);
 
     /**
       Remove from storage all incidences that have been previously
@@ -591,6 +591,149 @@ public:
     virtual void virtual_hook(int id, void *data) = 0;
 
 protected:
+    class Filter
+    {
+    public:
+        enum FilterType {
+            None,
+            ByNotebook,
+            ByIncidence,
+            BySeries,
+            ByDatetimeRange,
+            ByNoDate,
+            SortedByDatetime,
+            ByJournal,
+            ByTodo,
+            Recursive,
+            ByGeoLocation,
+            ByAttendee
+        };
+        Filter() {};
+        virtual FilterType type() const { return None; };
+    };
+
+    class NotebookFilter: public Filter
+    {
+    public:
+        NotebookFilter(const QString &notebookUid) : mNotebookUid(notebookUid) {};
+        FilterType type() const { return ByNotebook; };
+        QString notebookUid() const { return mNotebookUid; };
+    private:
+        QString mNotebookUid;
+    };
+
+    class IncidenceFilter: public Filter
+    {
+    public:
+        IncidenceFilter(const QString &uid, const QDateTime &recurrenceId = QDateTime())
+            : mUid(uid), mRecurrenceId(recurrenceId) {};
+        FilterType type() const { return ByIncidence; };
+        QString uid() const { return mUid; };
+        QDateTime recurrenceId() const { return mRecurrenceId; };
+    private:
+        QString mUid;
+        QDateTime mRecurrenceId;
+    };
+
+    class SeriesFilter: public Filter
+    {
+    public:
+        SeriesFilter(const QString &uid) : mUid(uid) {};
+        FilterType type() const { return BySeries; };
+        QString uid() const { return mUid; };
+    private:
+        QString mUid;
+    };
+
+    class RangeFilter: public Filter
+    {
+    public:
+        RangeFilter(const QDateTime &start, const QDateTime &end)
+            : mStart(start), mEnd(end) {};
+        FilterType type() const { return ByDatetimeRange; };
+        QDateTime start() const { return mStart; };
+        QDateTime end() const { return mEnd; };
+    private:
+        QDateTime mStart, mEnd;
+    };
+
+    class NoDateFilter: public Filter
+    {
+    public:
+        NoDateFilter() {};
+        FilterType type() const { return ByNoDate; };
+    };
+
+    class SortedFilter: public Filter
+    {
+    public:
+        SortedFilter(bool useDate = false, bool before = true)
+            : mUseDate(useDate), mBefore(before) {};
+        FilterType type() const { return SortedByDatetime; };
+        bool useDate() const { return mUseDate; };
+        bool before() const { return mBefore; };
+    private:
+        bool mUseDate, mBefore;
+    };
+
+    class JournalFilter: public SortedFilter
+    {
+    public:
+        JournalFilter() {};
+        FilterType type() const { return ByJournal; };
+    };
+
+    class TodoFilter: public SortedFilter
+    {
+    public:
+        TodoFilter() : mCompleted(false) {};
+        TodoFilter(bool useDate)
+            : SortedFilter(useDate)
+            , mCompleted(true) {};
+        FilterType type() const { return ByTodo; };
+        bool completed() const { return mCompleted; };
+    private:
+        bool mCompleted;
+    };
+
+    class RecursiveFilter: public Filter
+    {
+    public:
+        RecursiveFilter() {};
+        FilterType type() const { return Recursive; };
+    };
+
+    class GeoLocationFilter: public SortedFilter
+    {
+    public:
+        GeoLocationFilter()
+            : mLatitude(0.f), mLongitude(0.f)
+            , mDeltaLatitude(180.f), mDeltaLongitude(360.f) {};
+        GeoLocationFilter(float latitude, float longitude,
+                          float deltaLatitude, float deltaLongitude)
+            : mLatitude(latitude), mLongitude(longitude)
+            , mDeltaLatitude(deltaLatitude), mDeltaLongitude(deltaLongitude) {};
+        GeoLocationFilter(bool useDate) : SortedFilter(useDate) {};
+        FilterType type() const { return ByGeoLocation; };
+        float latitude() const { return mLatitude; };
+        float longitude() const { return mLongitude; };
+        float deltaLatitude() const { return mDeltaLatitude; };
+        float deltaLongitude() const { return mDeltaLongitude; };
+    private:
+        float mLatitude, mLongitude, mDeltaLatitude, mDeltaLongitude;
+    };
+
+    class AttendeeFilter: public SortedFilter
+    {
+    public:
+        AttendeeFilter() {};
+        AttendeeFilter(const QString &email) : mEmail(email) {};
+        FilterType type() const { return ByAttendee; };
+        QString email() const { return mEmail; };
+    private:
+        QString mEmail;
+    };
+
     virtual QTimeZone timeZone() const = 0;
     virtual bool loadNotebooks(QList<Notebook> *notebooks, QString *defaultNotebookId) = 0;
     virtual bool modifyNotebook(const Notebook &nb, DBOperation dbop) = 0;
@@ -598,13 +741,9 @@ protected:
                                  const QMultiHash<QString, KCalendarCore::Incidence::Ptr> &modifications,
                                  const QMultiHash<QString, KCalendarCore::Incidence::Ptr> &deletions,
                                  ExtendedStorage::DeleteAction deleteAction) = 0;
-
-    bool getLoadDates(const QDate &start, const QDate &end,
-                      QDateTime *loadStart, QDateTime *loadEnd) const;
-
-    void addLoadedRange(const QDate &start, const QDate &end) const;
-    bool isRecurrenceLoaded() const;
-    void setIsRecurrenceLoaded(bool loaded);
+    virtual int loadIncidences(const Filter &filter = Filter()) = 0;
+    virtual int loadSortedIncidences(const SortedFilter &filter = SortedFilter(),
+                                     int limit = -1, QDateTime *last = nullptr) = 0;
 
     void setModified(const QString &info);
     void setFinished(bool error, const QString &info);
@@ -612,6 +751,13 @@ protected:
                     const KCalendarCore::Incidence::List &modified,
                     const KCalendarCore::Incidence::List &deleted);
     void setLoaded(const QMultiHash<QString, KCalendarCore::Incidence::Ptr> &incidences);
+private:
+    bool getLoadDates(const QDate &start, const QDate &end,
+                      QDateTime *loadStart, QDateTime *loadEnd) const;
+
+    void addLoadedRange(const QDate &start, const QDate &end) const;
+    bool isRecurrenceLoaded() const;
+    void setIsRecurrenceLoaded(bool loaded);
 
     bool isUncompletedTodosLoaded();
     void setIsUncompletedTodosLoaded(bool loaded);
@@ -638,7 +784,6 @@ protected:
 
     void clearLoaded();
 
-private:
     //@cond PRIVATE
     Q_DISABLE_COPY(ExtendedStorage)
     class MKCAL_HIDE Private;

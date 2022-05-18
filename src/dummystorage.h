@@ -59,103 +59,10 @@ public:
         return true;
     }
 
-    /**
-      @copydoc
-      ExtendedStorage::load()
-    */
-    bool load()
-    {
-        return true;
-    }
-
-    bool load(const QString &, const QDateTime &)
-    {
-        return true;
-    }
-    bool load(const QDate &)
-    {
-        return true;
-    }
-    bool load(const QDate &, const QDate &)
-    {
-        return true;
-    }
-    bool loadSeries(const QString &)
-    {
-        return true;
-    }
-    bool loadIncidenceInstance(const QString &)
-    {
-        return true;
-    }
-    bool loadNotebookIncidences(const QString &)
-    {
-        return true;
-    }
-    bool loadJournals()
-    {
-        return true;
-    }
-    bool loadPlainIncidences()
-    {
-        return true;
-    }
-    bool loadRecurringIncidences()
-    {
-        return true;
-    }
-    bool loadGeoIncidences()
-    {
-        return true;
-    }
-    bool loadGeoIncidences(float, float, float, float)
-    {
-        return true;
-    }
-    bool loadAttendeeIncidences()
-    {
-        return true;
-    }
-    int loadUncompletedTodos()
-    {
-        return 0;
-    }
-    int loadCompletedTodos(bool, int, QDateTime *)
-    {
-        return 0;
-    }
-    int loadIncidences(bool, int, QDateTime *)
-    {
-        return 0;
-    }
-    int loadFutureIncidences(int, QDateTime *)
-    {
-        return 0;
-    }
-    int loadGeoIncidences(bool, int, QDateTime *)
-    {
-        return 0;
-    }
-    int loadUnreadInvitationIncidences()
-    {
-        return 0;
-    }
-    int loadOldInvitationIncidences(int, QDateTime *)
-    {
-        return 0;
-    }
     KCalendarCore::Person::List loadContacts()
     {
         KCalendarCore::Person::List l;
         return l;
-    }
-    int loadContactIncidences(const KCalendarCore::Person &, int, QDateTime *)
-    {
-        return 0;
-    }
-    int loadJournals(int, QDateTime *)
-    {
-        return 0;
     }
     bool notifyOpened(const KCalendarCore::Incidence::Ptr &)
     {
@@ -212,6 +119,15 @@ public:
                          const QMultiHash<QString, KCalendarCore::Incidence::Ptr> &modification,
                          const QMultiHash<QString, KCalendarCore::Incidence::Ptr> &deletions,
                          ExtendedStorage::DeleteAction deleteAction)
+    {
+        return true;
+    }
+    int loadIncidences(const ExtendedStorage::Filter &filter = ExtendedStorage::Filter())
+    {
+        return true;
+    }
+    int loadSortedIncidences(const ExtendedStorage::SortedFilter &filter = ExtendedStorage::SortedFilter(),
+                             int limit = -1, QDateTime *last = nullptr)
     {
         return true;
     }

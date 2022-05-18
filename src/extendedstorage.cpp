@@ -426,6 +426,227 @@ void ExtendedStorage::setIsGeoCreatedLoaded(bool loaded)
     d->mIsGeoCreatedLoaded = loaded;
 }
 
+bool ExtendedStorage::load()
+{
+    bool success = loadIncidences() >= 0;
+    setIsRecurrenceLoaded(success);
+    if (success) {
+        addLoadedRange(QDate(), QDate());
+    }
+    return success;
+}
+
+bool ExtendedStorage::load(const QString &uid, const QDateTime &recurrenceId)
+{
+    return loadIncidences(IncidenceFilter(uid, recurrenceId)) >= 0;
+}
+
+bool ExtendedStorage::load(const QDate &date)
+{
+    return date.isValid() ? load(date, date.addDays(1)) : false;
+}
+
+bool ExtendedStorage::load(const QDate &start, const QDate &end)
+{
+    // We have no way to know if a recurring incidence
+    // is happening within [start, end[, so load them all.
+    if ((start.isValid() || end.isValid())
+        && !loadRecurringIncidences()) {
+        return false;
+    }
+
+    QDateTime loadStart;
+    QDateTime loadEnd;
+    if (getLoadDates(start, end, &loadStart, &loadEnd)) {
+        bool success = loadIncidences(RangeFilter(loadStart, loadEnd)) >= 0;
+        if (success) {
+            addLoadedRange(loadStart.date(), loadEnd.date());
+        }
+        if (loadStart.isNull() && loadEnd.isNull()) {
+            setIsRecurrenceLoaded(success);
+        }
+        return success;
+    } else {
+        return true;
+    }
+}
+
+bool ExtendedStorage::loadSeries(const QString &uid)
+{
+    return loadIncidences(SeriesFilter(uid)) >= 0;
+}
+
+bool ExtendedStorage::loadIncidenceInstance(const QString &instanceIdentifier)
+{
+    QString uid;
+    QDateTime recId;
+    // At the moment, from KCalendarCore, if the instance is an exception,
+    // the instanceIdentifier will ends with yyyy-MM-ddTHH:mm:ss[Z|[+|-]HH:mm]
+    // This is tested in tst_loadIncidenceInstance() to ensure that any
+    // future breakage would be properly detected.
+    if (instanceIdentifier.endsWith('Z')) {
+        uid = instanceIdentifier.left(instanceIdentifier.length() - 20);
+        recId = QDateTime::fromString(instanceIdentifier.right(20), Qt::ISODate);
+    } else if (instanceIdentifier.length() > 19
+               && instanceIdentifier[instanceIdentifier.length() - 9] == 'T') {
+        uid = instanceIdentifier.left(instanceIdentifier.length() - 19);
+        recId = QDateTime::fromString(instanceIdentifier.right(19), Qt::ISODate);
+    } else if (instanceIdentifier.length() > 25
+               && instanceIdentifier[instanceIdentifier.length() - 3] == ':') {
+        uid = instanceIdentifier.left(instanceIdentifier.length() - 25);
+        recId = QDateTime::fromString(instanceIdentifier.right(25), Qt::ISODate);
+    }
+    if (!recId.isValid()) {
+        uid = instanceIdentifier;
+    }
+
+    return load(uid, recId);
+}
+
+bool ExtendedStorage::loadNotebookIncidences(const QString &notebookUid)
+{
+    return loadIncidences(NotebookFilter(notebookUid)) >= 0;
+}
+
+bool ExtendedStorage::loadJournals()
+{
+    return loadIncidences(JournalFilter()) >= 0;
+}
+
+bool ExtendedStorage::loadPlainIncidences()
+{
+    return loadIncidences(NoDateFilter()) >= 0;
+}
+
+bool ExtendedStorage::loadRecurringIncidences()
+{
+    if (isRecurrenceLoaded()) {
+        return true;
+    }
+
+    bool success = loadIncidences(RecursiveFilter()) >= 0;
+    setIsRecurrenceLoaded(success);
+
+    return success;
+}
+
+bool ExtendedStorage::loadGeoIncidences()
+{
+    return loadIncidences(GeoLocationFilter()) >= 0;
+}
+
+bool ExtendedStorage::loadGeoIncidences(float geoLatitude, float geoLongitude,
+                                      float diffLatitude, float diffLongitude)
+{
+    return loadIncidences(GeoLocationFilter(geoLatitude, geoLongitude,
+                                            diffLatitude, diffLongitude)) >= 0;
+}
+
+bool ExtendedStorage::loadAttendeeIncidences()
+{
+    return loadIncidences(AttendeeFilter()) >= 0;
+}
+
+int ExtendedStorage::loadUncompletedTodos()
+{
+    if (isUncompletedTodosLoaded()) {
+        return 0;
+    }
+
+    int count = loadIncidences(TodoFilter());
+    setIsUncompletedTodosLoaded(count >= 0);
+    return count;
+}
+
+int ExtendedStorage::loadCompletedTodos(bool hasDate, int limit, QDateTime *last)
+{
+    if (hasDate && isCompletedTodosDateLoaded()) {
+        return 0;
+    } else if (!hasDate && isCompletedTodosCreatedLoaded()) {
+        return 0;
+    }
+
+    int count = loadSortedIncidences(TodoFilter(hasDate), limit, last);
+    if (count >= 0 && count < limit) {
+        if (hasDate) {
+            setIsCompletedTodosDateLoaded(true);
+        } else {
+            setIsCompletedTodosCreatedLoaded(true);
+        }
+    }
+
+    return count;
+}
+int ExtendedStorage::loadJournals(int limit, QDateTime *last)
+{
+    if (isJournalsLoaded())
+        return 0;
+
+    int count = loadSortedIncidences(JournalFilter(), limit, last);
+    if (count >= 0 && count < limit) {
+        setIsJournalsLoaded(true);
+    }
+    return count;
+}
+
+int ExtendedStorage::loadIncidences(bool hasDate, int limit, QDateTime *last)
+{
+    if (hasDate && isDateLoaded()) {
+        return 0;
+    } else if (!hasDate && isCreatedLoaded()) {
+        return 0;
+    }
+
+    int count = loadSortedIncidences(SortedFilter(hasDate), limit, last);
+    if (count >= 0 && count < limit) {
+        if (hasDate) {
+            setIsDateLoaded(true);
+        } else {
+            setIsCreatedLoaded(true);
+        }
+    }
+
+    return count;
+}
+
+int ExtendedStorage::loadFutureIncidences(int limit, QDateTime *last)
+{
+    if (isFutureDateLoaded()) {
+        return 0;
+    }
+
+    int count = loadSortedIncidences(SortedFilter(false, true), limit, last);
+    if (count >= 0 && count < limit) {
+        setIsFutureDateLoaded(true);
+    }
+
+    return count;
+}
+
+int ExtendedStorage::loadGeoIncidences(bool hasDate, int limit, QDateTime *last)
+{
+    if (hasDate && isGeoDateLoaded()) {
+        return 0;
+    } else if (!hasDate && isGeoCreatedLoaded()) {
+        return 0;
+    }
+
+    int count = loadSortedIncidences(GeoLocationFilter(hasDate), limit, last);
+    if (count >= 0 && count < limit) {
+        if (hasDate) {
+            setIsGeoDateLoaded(true);
+        } else {
+            setIsGeoCreatedLoaded(true);
+        }
+    }
+    return count;
+}
+
+int ExtendedStorage::loadContactIncidences(const Person &person, int limit, QDateTime *last)
+{
+    return loadSortedIncidences(AttendeeFilter(person.isEmpty() ? person.email() : QString()), limit, last);
+}
+
 void ExtendedStorage::Private::calendarModified(bool modified, Calendar *calendar)
 {
     Q_UNUSED(calendar);

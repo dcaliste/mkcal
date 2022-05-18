@@ -270,686 +270,6 @@ error:
     return false;
 }
 
-bool SqliteStorage::load()
-{
-    if (!d->mDatabase) {
-        return false;
-    }
-
-    int rv = 0;
-    int count = -1;
-
-    const char *query1 = NULL;
-    int qsize1 = 0;
-
-    sqlite3_stmt *stmt1 = NULL;
-
-    query1 = SELECT_COMPONENTS_ALL;
-    qsize1 = sizeof(SELECT_COMPONENTS_ALL);
-
-    SL3_prepare_v2(d->mDatabase, query1, qsize1, &stmt1, NULL);
-
-    count = d->loadIncidences(stmt1);
-
-error:
-    setIsRecurrenceLoaded(count >= 0);
-    if (count >= 0) {
-        addLoadedRange(QDate(), QDate());
-    }
-
-    return count >= 0;
-}
-
-bool SqliteStorage::load(const QString &uid, const QDateTime &recurrenceId)
-{
-    if (!d->mDatabase) {
-        return false;
-    }
-
-    int rv = 0;
-    int count = -1;
-
-    const char *query1 = NULL;
-    int qsize1 = 0;
-
-    sqlite3_stmt *stmt1 = NULL;
-    int index = 1;
-    QByteArray u;
-    qint64 secsRecurId;
-
-    if (!uid.isEmpty()) {
-        query1 = SELECT_COMPONENTS_BY_UID_AND_RECURID;
-        qsize1 = sizeof(SELECT_COMPONENTS_BY_UID_AND_RECURID);
-
-        SL3_prepare_v2(d->mDatabase, query1, qsize1, &stmt1, NULL);
-        u = uid.toUtf8();
-        SL3_bind_text(stmt1, index, u.constData(), u.length(), SQLITE_STATIC);
-        if (recurrenceId.isValid()) {
-            if (recurrenceId.timeSpec() == Qt::LocalTime) {
-                secsRecurId = d->mFormat->toLocalOriginTime(recurrenceId);
-            } else {
-                secsRecurId = d->mFormat->toOriginTime(recurrenceId);
-            }
-            SL3_bind_int64(stmt1, index, secsRecurId);
-        } else {
-            // no recurrenceId, bind NULL
-            // note that sqlite3_bind_null doesn't seem to work here
-            // also note that sqlite should bind NULL automatically if nothing
-            // is bound, but that doesn't work either
-            SL3_bind_int64(stmt1, index, 0);
-        }
-
-        count = d->loadIncidences(stmt1);
-    }
-error:
-    return count >= 0;
-}
-
-bool SqliteStorage::loadSeries(const QString &uid)
-{
-    if (!d->mDatabase) {
-        return false;
-    }
-
-    int rv = 0;
-    int count = -1;
-
-    const char *query1 = NULL;
-    int qsize1 = 0;
-
-    sqlite3_stmt *stmt1 = NULL;
-    int index = 1;
-    QByteArray u;
-
-    if (!uid.isEmpty()) {
-        query1 = SELECT_COMPONENTS_BY_UID;
-        qsize1 = sizeof(SELECT_COMPONENTS_BY_UID);
-
-        SL3_prepare_v2(d->mDatabase, query1, qsize1, &stmt1, NULL);
-        u = uid.toUtf8();
-        SL3_bind_text(stmt1, index, u.constData(), u.length(), SQLITE_STATIC);
-
-        count = d->loadIncidences(stmt1);
-    }
-error:
-    return count >= 0;
-}
-
-bool SqliteStorage::load(const QDate &date)
-{
-    if (!d->mDatabase) {
-        return false;
-    }
-
-    if (date.isValid()) {
-        return load(date, date.addDays(1));
-    }
-
-    return false;
-}
-
-bool SqliteStorage::load(const QDate &start, const QDate &end)
-{
-    if (!d->mDatabase) {
-        return false;
-    }
-
-    // We have no way to know if a recurring incidence
-    // is happening within [start, end[, so load them all.
-    if ((start.isValid() || end.isValid())
-        && !loadRecurringIncidences()) {
-        return false;
-    }
-
-    int rv = 0;
-    int count = -1;
-    QDateTime loadStart;
-    QDateTime loadEnd;
-
-    if (getLoadDates(start, end, &loadStart, &loadEnd)) {
-        const char *query1 = NULL;
-        int qsize1 = 0;
-
-        sqlite3_stmt *stmt1 = NULL;
-        int index = 1;
-        qint64 secsStart;
-        qint64 secsEnd;
-
-        // Incidences to insert
-        if (loadStart.isValid() && loadEnd.isValid()) {
-            query1 = SELECT_COMPONENTS_BY_DATE_BOTH;
-            qsize1 = sizeof(SELECT_COMPONENTS_BY_DATE_BOTH);
-            SL3_prepare_v2(d->mDatabase, query1, qsize1, &stmt1, NULL);
-            secsStart = d->mFormat->toOriginTime(loadStart);
-            secsEnd = d->mFormat->toOriginTime(loadEnd);
-            SL3_bind_int64(stmt1, index, secsEnd);
-            SL3_bind_int64(stmt1, index, secsStart);
-            SL3_bind_int64(stmt1, index, secsStart);
-        } else if (loadStart.isValid()) {
-            query1 = SELECT_COMPONENTS_BY_DATE_START;
-            qsize1 = sizeof(SELECT_COMPONENTS_BY_DATE_START);
-            SL3_prepare_v2(d->mDatabase, query1, qsize1, &stmt1, NULL);
-            secsStart = d->mFormat->toOriginTime(loadStart);
-            SL3_bind_int64(stmt1, index, secsStart);
-            SL3_bind_int64(stmt1, index, secsStart);
-        } else if (loadEnd.isValid()) {
-            query1 = SELECT_COMPONENTS_BY_DATE_END;
-            qsize1 = sizeof(SELECT_COMPONENTS_BY_DATE_END);
-            SL3_prepare_v2(d->mDatabase, query1, qsize1, &stmt1, NULL);
-            secsEnd = d->mFormat->toOriginTime(loadEnd);
-            SL3_bind_int64(stmt1, index, secsEnd);
-        } else {
-            query1 = SELECT_COMPONENTS_ALL;
-            qsize1 = sizeof(SELECT_COMPONENTS_ALL);
-            SL3_prepare_v2(d->mDatabase, query1, qsize1, &stmt1, NULL);
-        }
-        count = d->loadIncidences(stmt1);
-
-        if (count >= 0) {
-            addLoadedRange(loadStart.date(), loadEnd.date());
-        }
-        if (loadStart.isNull() && loadEnd.isNull()) {
-            setIsRecurrenceLoaded(count >= 0);
-        }
-    } else {
-        count = 0;
-    }
-error:
-    return count >= 0;
-}
-
-bool SqliteStorage::loadNotebookIncidences(const QString &notebookUid)
-{
-    if (!d->mDatabase) {
-        return false;
-    }
-
-    int rv = 0;
-    int count = -1;
-
-    const char *query1 = NULL;
-    int qsize1 = 0;
-
-    sqlite3_stmt *stmt1 = NULL;
-    int index = 1;
-    QByteArray u;
-
-    if (!notebookUid.isEmpty()) {
-        query1 = SELECT_COMPONENTS_BY_NOTEBOOKUID;
-        qsize1 = sizeof(SELECT_COMPONENTS_BY_NOTEBOOKUID);
-
-        SL3_prepare_v2(d->mDatabase, query1, qsize1, &stmt1, NULL);
-        u = notebookUid.toUtf8();
-        SL3_bind_text(stmt1, index, u.constData(), u.length(), SQLITE_STATIC);
-
-        count = d->loadIncidences(stmt1);
-    }
-error:
-    return count >= 0;
-}
-
-bool SqliteStorage::loadIncidenceInstance(const QString &instanceIdentifier)
-{
-    QString uid;
-    QDateTime recId;
-    // At the moment, from KCalendarCore, if the instance is an exception,
-    // the instanceIdentifier will ends with yyyy-MM-ddTHH:mm:ss[Z|[+|-]HH:mm]
-    // This is tested in tst_loadIncidenceInstance() to ensure that any
-    // future breakage would be properly detected.
-    if (instanceIdentifier.endsWith('Z')) {
-        uid = instanceIdentifier.left(instanceIdentifier.length() - 20);
-        recId = QDateTime::fromString(instanceIdentifier.right(20), Qt::ISODate);
-    } else if (instanceIdentifier.length() > 19
-               && instanceIdentifier[instanceIdentifier.length() - 9] == 'T') {
-        uid = instanceIdentifier.left(instanceIdentifier.length() - 19);
-        recId = QDateTime::fromString(instanceIdentifier.right(19), Qt::ISODate);
-    } else if (instanceIdentifier.length() > 25
-               && instanceIdentifier[instanceIdentifier.length() - 3] == ':') {
-        uid = instanceIdentifier.left(instanceIdentifier.length() - 25);
-        recId = QDateTime::fromString(instanceIdentifier.right(25), Qt::ISODate);
-    }
-    if (!recId.isValid()) {
-        uid = instanceIdentifier;
-    }
-
-    return load(uid, recId);
-}
-
-bool SqliteStorage::loadJournals()
-{
-
-    if (!d->mDatabase) {
-        return false;
-    }
-
-    int rv = 0;
-    int count = -1;
-
-    const char *query1 = NULL;
-    int qsize1 = 0;
-
-    sqlite3_stmt *stmt1 = NULL;
-
-    query1 = SELECT_COMPONENTS_BY_JOURNAL;
-    qsize1 = sizeof(SELECT_COMPONENTS_BY_JOURNAL);
-
-    SL3_prepare_v2(d->mDatabase, query1, qsize1, &stmt1, NULL);
-
-    count = d->loadIncidences(stmt1);
-
-error:
-    return count >= 0;
-}
-
-bool SqliteStorage::loadPlainIncidences()
-{
-    if (!d->mDatabase) {
-        return false;
-    }
-
-    int rv = 0;
-    int count = -1;
-
-    const char *query1 = NULL;
-    int qsize1 = 0;
-
-    sqlite3_stmt *stmt1 = NULL;
-
-    query1 = SELECT_COMPONENTS_BY_PLAIN;
-    qsize1 = sizeof(SELECT_COMPONENTS_BY_PLAIN);
-
-    SL3_prepare_v2(d->mDatabase, query1, qsize1, &stmt1, NULL);
-
-    count = d->loadIncidences(stmt1);
-
-error:
-    return count >= 0;
-}
-
-bool SqliteStorage::loadRecurringIncidences()
-{
-    if (!d->mDatabase) {
-        return false;
-    }
-
-    if (isRecurrenceLoaded()) {
-        return true;
-    }
-
-    int rv = 0;
-    int count = 0;
-
-    const char *query1 = NULL;
-    int qsize1 = 0;
-
-    sqlite3_stmt *stmt1 = NULL;
-
-    query1 = SELECT_COMPONENTS_BY_RECURSIVE;
-    qsize1 = sizeof(SELECT_COMPONENTS_BY_RECURSIVE);
-
-    SL3_prepare_v2(d->mDatabase, query1, qsize1, &stmt1, NULL);
-
-    count = d->loadIncidences(stmt1);
-
-error:
-    setIsRecurrenceLoaded(count >= 0);
-
-    return count >= 0;
-}
-
-bool SqliteStorage::loadGeoIncidences()
-{
-    if (!d->mDatabase) {
-        return false;
-    }
-
-    int rv = 0;
-    int count = -1;
-
-    const char *query1 = NULL;
-    int qsize1 = 0;
-
-    sqlite3_stmt *stmt1 = NULL;
-
-    query1 = SELECT_COMPONENTS_BY_GEO;
-    qsize1 = sizeof(SELECT_COMPONENTS_BY_GEO);
-
-    SL3_prepare_v2(d->mDatabase, query1, qsize1, &stmt1, NULL);
-
-    count = d->loadIncidences(stmt1);
-
-error:
-    return count >= 0;
-}
-
-bool SqliteStorage::loadGeoIncidences(float geoLatitude, float geoLongitude,
-                                      float diffLatitude, float diffLongitude)
-{
-    if (!d->mDatabase) {
-        return false;
-    }
-
-    int rv = 0;
-    int count = -1;
-
-    const char *query1 = NULL;
-    int qsize1 = 0;
-
-    sqlite3_stmt *stmt1 = NULL;
-    int index = 1;
-
-    query1 = SELECT_COMPONENTS_BY_GEO_AREA;
-    qsize1 = sizeof(SELECT_COMPONENTS_BY_GEO_AREA);
-
-    SL3_prepare_v2(d->mDatabase, query1, qsize1, &stmt1, NULL);
-    SL3_bind_int64(stmt1, index, geoLatitude - diffLatitude);
-    SL3_bind_int64(stmt1, index, geoLongitude - diffLongitude);
-    SL3_bind_int64(stmt1, index, geoLatitude + diffLatitude);
-    SL3_bind_int64(stmt1, index, geoLongitude + diffLongitude);
-
-    count = d->loadIncidences(stmt1);
-
-error:
-    return count >= 0;
-}
-
-bool SqliteStorage::loadAttendeeIncidences()
-{
-    if (!d->mDatabase) {
-        return false;
-    }
-
-    int rv = 0;
-    int count = -1;
-
-    const char *query1 = NULL;
-    int qsize1 = 0;
-
-    sqlite3_stmt *stmt1 = NULL;
-
-    query1 = SELECT_COMPONENTS_BY_ATTENDEE;
-    qsize1 = sizeof(SELECT_COMPONENTS_BY_ATTENDEE);
-
-    SL3_prepare_v2(d->mDatabase, query1, qsize1, &stmt1, NULL);
-
-    count = d->loadIncidences(stmt1);
-
-error:
-    return count >= 0;
-}
-
-int SqliteStorage::loadUncompletedTodos()
-{
-    if (!d->mDatabase) {
-        return -1;
-    }
-
-    if (isUncompletedTodosLoaded()) {
-        return 0;
-    }
-
-    int rv = 0;
-    int count = 0;
-
-    const char *query1 = NULL;
-    int qsize1 = 0;
-
-    sqlite3_stmt *stmt1 = NULL;
-
-    query1 = SELECT_COMPONENTS_BY_UNCOMPLETED_TODOS;
-    qsize1 = sizeof(SELECT_COMPONENTS_BY_UNCOMPLETED_TODOS);
-
-    SL3_prepare_v2(d->mDatabase, query1, qsize1, &stmt1, NULL);
-
-    count = d->loadIncidences(stmt1);
-
-    setIsUncompletedTodosLoaded(count >= 0);
-
-error:
-    return count;
-}
-
-int SqliteStorage::loadCompletedTodos(bool hasDate, int limit, QDateTime *last)
-{
-    if (!d->mDatabase) {
-        return -1;
-    }
-
-    if (hasDate) {
-        if (isCompletedTodosDateLoaded()) {
-            return 0;
-        }
-    } else {
-        if (isCompletedTodosCreatedLoaded()) {
-            return 0;
-        }
-    }
-    int rv = 0;
-    int count = 0;
-
-    const char *query1 = NULL;
-    int qsize1 = 0;
-
-    sqlite3_stmt *stmt1 = NULL;
-    int index = 1;
-    qint64 secsStart;
-
-    if (last && last->isValid()) {
-        secsStart = d->mFormat->toOriginTime(*last);
-    } else {
-        secsStart = LLONG_MAX; // largest time
-    }
-
-    if (hasDate) {
-        query1 = SELECT_COMPONENTS_BY_COMPLETED_TODOS_AND_DATE;
-        qsize1 = sizeof(SELECT_COMPONENTS_BY_COMPLETED_TODOS_AND_DATE);
-    } else {
-        query1 = SELECT_COMPONENTS_BY_COMPLETED_TODOS_AND_CREATED;
-        qsize1 = sizeof(SELECT_COMPONENTS_BY_COMPLETED_TODOS_AND_CREATED);
-    }
-    SL3_prepare_v2(d->mDatabase, query1, qsize1, &stmt1, NULL);
-    SL3_bind_int64(stmt1, index, secsStart);
-
-    count = d->loadIncidences(stmt1, limit, last, hasDate);
-
-    if (count >= 0 && count < limit) {
-        if (hasDate) {
-            setIsCompletedTodosDateLoaded(true);
-        } else {
-            setIsCompletedTodosCreatedLoaded(true);
-        }
-    }
-
-error:
-    return count;
-}
-int SqliteStorage::loadJournals(int limit, QDateTime *last)
-{
-    if (!d->mDatabase)
-        return -1;
-
-    if (isJournalsLoaded())
-        return 0;
-
-    int rv = 0;
-    int count = 0;
-
-    const char *query1 = NULL;
-    int qsize1 = 0;
-
-    sqlite3_stmt *stmt1 = NULL;
-    int index = 1;
-    qint64 secsStart;
-
-    if (last && last->isValid())
-        secsStart = d->mFormat->toOriginTime(*last);
-    else
-        secsStart = LLONG_MAX; // largest time
-
-    query1 = SELECT_COMPONENTS_BY_JOURNAL_DATE;
-    qsize1 = sizeof(SELECT_COMPONENTS_BY_JOURNAL_DATE);
-
-    SL3_prepare_v2(d->mDatabase, query1, qsize1, &stmt1, NULL);
-    SL3_bind_int64(stmt1, index, secsStart);
-
-    count = d->loadIncidences(stmt1, limit, last, true);
-
-    if (count >= 0 && count < limit) {
-        setIsJournalsLoaded(true);
-    }
-error:
-    return count;
-}
-
-int SqliteStorage::loadIncidences(bool hasDate, int limit, QDateTime *last)
-{
-    if (!d->mDatabase) {
-        return -1;
-    }
-
-    if (hasDate) {
-        if (isDateLoaded()) {
-            return 0;
-        }
-    } else {
-        if (isCreatedLoaded()) {
-            return 0;
-        }
-    }
-    int rv = 0;
-    int count = 0;
-
-    const char *query1 = NULL;
-    int qsize1 = 0;
-
-    sqlite3_stmt *stmt1 = NULL;
-    int index = 1;
-    qint64 secsStart;
-
-    if (last && last->isValid()) {
-        secsStart = d->mFormat->toOriginTime(*last);
-    } else {
-        secsStart = LLONG_MAX; // largest time
-    }
-    if (hasDate) {
-        query1 = SELECT_COMPONENTS_BY_DATE_SMART;
-        qsize1 = sizeof(SELECT_COMPONENTS_BY_DATE_SMART);
-    } else {
-        query1 = SELECT_COMPONENTS_BY_CREATED_SMART;
-        qsize1 = sizeof(SELECT_COMPONENTS_BY_CREATED_SMART);
-    }
-    SL3_prepare_v2(d->mDatabase, query1, qsize1, &stmt1, NULL);
-    SL3_bind_int64(stmt1, index, secsStart);
-
-    count = d->loadIncidences(stmt1, limit, last, hasDate);
-
-    if (count >= 0 && count < limit) {
-        if (hasDate) {
-            setIsDateLoaded(true);
-        } else {
-            setIsCreatedLoaded(true);
-        }
-    }
-
-error:
-    return count;
-}
-
-
-int SqliteStorage::loadFutureIncidences(int limit, QDateTime *last)
-{
-    if (!d->mDatabase) {
-        return -1;
-    }
-
-    if (isFutureDateLoaded()) {
-        return 0;
-    }
-    int rv = 0;
-    int count = 0;
-
-    const char *query1 = NULL;
-    int qsize1 = 0;
-
-    sqlite3_stmt *stmt1 = NULL;
-    int index = 1;
-    qint64 secsStart;
-
-    if (last && last->isValid()) {
-        secsStart = d->mFormat->toOriginTime(*last);
-    } else {
-        secsStart = LLONG_MAX; // largest time
-    }
-    query1 = SELECT_COMPONENTS_BY_FUTURE_DATE_SMART;
-    qsize1 = sizeof(SELECT_COMPONENTS_BY_FUTURE_DATE_SMART);
-
-    SL3_prepare_v2(d->mDatabase, query1, qsize1, &stmt1, NULL);
-    SL3_bind_int64(stmt1, index, secsStart);
-
-    count = d->loadIncidences(stmt1, limit, last, true, true);
-
-    if (count >= 0 && count < limit) {
-        setIsFutureDateLoaded(true);
-    }
-
-error:
-    return count;
-}
-
-int SqliteStorage::loadGeoIncidences(bool hasDate, int limit, QDateTime *last)
-{
-    if (!d->mDatabase) {
-        return -1;
-    }
-
-    if (hasDate) {
-        if (isGeoDateLoaded()) {
-            return 0;
-        }
-    } else {
-        if (isGeoCreatedLoaded()) {
-            return 0;
-        }
-    }
-    int rv = 0;
-    int count = 0;
-
-    const char *query1 = NULL;
-    int qsize1 = 0;
-
-    sqlite3_stmt *stmt1 = NULL;
-    int index = 1;
-    qint64 secsStart;
-
-    if (last && last->isValid()) {
-        secsStart = d->mFormat->toOriginTime(*last);
-    } else {
-        secsStart = LLONG_MAX; // largest time
-    }
-    if (hasDate) {
-        query1 = SELECT_COMPONENTS_BY_GEO_AND_DATE;
-        qsize1 = sizeof(SELECT_COMPONENTS_BY_GEO_AND_DATE);
-    } else {
-        query1 = SELECT_COMPONENTS_BY_GEO_AND_CREATED;
-        qsize1 = sizeof(SELECT_COMPONENTS_BY_GEO_AND_CREATED);
-    }
-    SL3_prepare_v2(d->mDatabase, query1, qsize1, &stmt1, NULL);
-    SL3_bind_int64(stmt1, index, secsStart);
-
-    count = d->loadIncidences(stmt1, limit, last, hasDate);
-
-    if (count >= 0 && count < limit) {
-        if (hasDate) {
-            setIsGeoDateLoaded(true);
-        } else {
-            setIsGeoCreatedLoaded(true);
-        }
-    }
-
-error:
-    return count;
-}
-
 Person::List SqliteStorage::loadContacts()
 {
     Person::List list;
@@ -963,51 +283,297 @@ Person::List SqliteStorage::loadContacts()
     return list;
 }
 
-int SqliteStorage::loadContactIncidences(const Person &person, int limit, QDateTime *last)
+bool SqliteStorage::notifyOpened(const Incidence::Ptr &incidence)
+{
+    Q_UNUSED(incidence);
+    return false;
+}
+
+static sqlite3_stmt* _prepare(sqlite3 *database, const char *query, int qsize)
+{
+    sqlite3_stmt *stmt = NULL;
+    int rv;
+    SL3_prepare_v2(database, query, qsize, &stmt, NULL);
+ error:
+    return stmt;
+}
+
+int SqliteStorage::loadIncidences(const ExtendedStorage::Filter &filter)
 {
     if (!d->mDatabase) {
         return -1;
     }
 
-    int rv = 0;
-    int count = 0;
-
-    const char *query1 = NULL;
-    int qsize1 = 0;
-
+    int count = -1;
     sqlite3_stmt *stmt1 = NULL;
-    int index = 1;
-    qint64 secsStart = 0;
-    QByteArray email;
 
-    if (!person.isEmpty()) {
-        email = person.email().toUtf8();
-        query1 = SELECT_COMPONENTS_BY_ATTENDEE_EMAIL_AND_CREATED;
-        qsize1 = sizeof(SELECT_COMPONENTS_BY_ATTENDEE_EMAIL_AND_CREATED);
-        SL3_prepare_v2(d->mDatabase, query1, qsize1, &stmt1, NULL);
-        SL3_bind_text(stmt1, index, email, email.length(), SQLITE_STATIC);
-    } else {
-        query1 = SELECT_COMPONENTS_BY_ATTENDEE_AND_CREATED;
-        qsize1 = sizeof(SELECT_COMPONENTS_BY_ATTENDEE_AND_CREATED);
-        SL3_prepare_v2(d->mDatabase, query1, qsize1, &stmt1, NULL);
+#define PREPARE(Q) _prepare(d->mDatabase, Q, sizeof(Q))
+    switch (filter.type()) {
+    case (ExtendedStorage::Filter::None):
+        stmt1 = PREPARE(SELECT_COMPONENTS_ALL);
+        if (stmt1) {
+            count = d->loadIncidences(stmt1);
+            sqlite3_finalize(stmt1);
+        }
+        return count;
+    case (ExtendedStorage::Filter::ByNotebook):
+        if (!static_cast<const NotebookFilter*>(&filter)->notebookUid().isEmpty()) {
+            stmt1 = PREPARE(SELECT_COMPONENTS_BY_NOTEBOOKUID);
+            if (stmt1) {
+                QByteArray u = static_cast<const NotebookFilter*>(&filter)->notebookUid().toUtf8();
+                if (sqlite3_bind_text(stmt1, 1, u.constData(), u.length(), SQLITE_STATIC)) {
+                    qCWarning(lcMkcal) << sqlite3_errmsg(d->mDatabase);
+                } else {
+                    count = d->loadIncidences(stmt1);
+                }
+                sqlite3_finalize(stmt1);
+            }
+        }
+        return count;
+    case (ExtendedStorage::Filter::ByIncidence):
+        if (!static_cast<const IncidenceFilter*>(&filter)->uid().isEmpty()) {
+            stmt1 = PREPARE(SELECT_COMPONENTS_BY_UID_AND_RECURID);
+            if (stmt1) {
+                const QByteArray u = static_cast<const IncidenceFilter*>(&filter)->uid().toUtf8();
+                const QDateTime recurrenceId = static_cast<const IncidenceFilter*>(&filter)->recurrenceId();
+                // no recurrenceId, bind NULL
+                // note that sqlite3_bind_null doesn't seem to work here
+                // also note that sqlite should bind NULL automatically if nothing
+                // is bound, but that doesn't work either
+                qint64 secsRecurId = 0;
+                if (recurrenceId.isValid()) {
+                    if (recurrenceId.timeSpec() == Qt::LocalTime) {
+                        secsRecurId = d->mFormat->toLocalOriginTime(recurrenceId);
+                    } else {
+                        secsRecurId = d->mFormat->toOriginTime(recurrenceId);
+                    }
+                }
+                if (sqlite3_bind_text(stmt1, 1, u.constData(), u.length(), SQLITE_STATIC) ||
+                    sqlite3_bind_int64(stmt1, 2, secsRecurId)) {
+                    qCWarning(lcMkcal) << sqlite3_errmsg(d->mDatabase);
+                } else {
+                    count = d->loadIncidences(stmt1);
+                }
+                sqlite3_finalize(stmt1);
+            }
+        }
+        return count;
+    case (ExtendedStorage::Filter::BySeries):
+        if (!static_cast<const SeriesFilter*>(&filter)->uid().isEmpty()) {
+            stmt1 = PREPARE(SELECT_COMPONENTS_BY_UID);
+            if (stmt1) {
+                QByteArray u = static_cast<const SeriesFilter*>(&filter)->uid().toUtf8();
+                if (sqlite3_bind_text(stmt1, 1, u.constData(), u.length(), SQLITE_STATIC)) {
+                    qCWarning(lcMkcal) << sqlite3_errmsg(d->mDatabase);
+                } else {
+                    count = d->loadIncidences(stmt1);
+                }
+                sqlite3_finalize(stmt1);
+            }
+        }
+        return count;
+    case (ExtendedStorage::Filter::ByDatetimeRange): {
+        QDateTime loadStart = static_cast<const RangeFilter*>(&filter)->start();
+        qint64 secsStart = d->mFormat->toOriginTime(loadStart);
+        QDateTime loadEnd = static_cast<const RangeFilter*>(&filter)->end();
+        qint64 secsEnd = d->mFormat->toOriginTime(loadEnd);
+        if (loadStart.isValid() && loadEnd.isValid()) {
+            stmt1 = PREPARE(SELECT_COMPONENTS_BY_DATE_BOTH);
+            if (stmt1 && (sqlite3_bind_int64(stmt1, 1, secsEnd)
+                          || sqlite3_bind_int64(stmt1, 2, secsStart)
+                          || sqlite3_bind_int64(stmt1, 3, secsStart))) {
+                qCWarning(lcMkcal) << sqlite3_errmsg(d->mDatabase);
+                sqlite3_finalize(stmt1);
+                stmt1 = nullptr;
+            }
+        } else if (loadStart.isValid()) {
+            stmt1 = PREPARE(SELECT_COMPONENTS_BY_DATE_START);
+            if (stmt1 && (sqlite3_bind_int64(stmt1, 1, secsStart)
+                          || sqlite3_bind_int64(stmt1, 2, secsStart))) {
+                qCWarning(lcMkcal) << sqlite3_errmsg(d->mDatabase);
+                sqlite3_finalize(stmt1);
+                stmt1 = nullptr;
+            }
+        } else if (loadEnd.isValid()) {
+            stmt1 = PREPARE(SELECT_COMPONENTS_BY_DATE_END);
+            if (stmt1 && sqlite3_bind_int64(stmt1, 1, secsEnd)) {
+                qCWarning(lcMkcal) << sqlite3_errmsg(d->mDatabase);
+                sqlite3_finalize(stmt1);
+                stmt1 = nullptr;
+            }
+        } else {
+            stmt1 = PREPARE(SELECT_COMPONENTS_ALL);
+        }
+        if (stmt1) {
+            count = d->loadIncidences(stmt1);
+            sqlite3_finalize(stmt1);
+        }
+        return count;
     }
-    if (last && last->isValid()) {
-        secsStart = d->mFormat->toOriginTime(*last);
-    } else {
-        secsStart = LLONG_MAX; // largest time
+    case (ExtendedStorage::Filter::ByNoDate):
+        stmt1 = PREPARE(SELECT_COMPONENTS_BY_PLAIN);
+        if (stmt1) {
+            count = d->loadIncidences(stmt1);
+            sqlite3_finalize(stmt1);
+        }
+        return count;
+    case (ExtendedStorage::Filter::ByTodo):
+        stmt1 = PREPARE(SELECT_COMPONENTS_BY_UNCOMPLETED_TODOS);
+        if (stmt1) {
+            count = d->loadIncidences(stmt1);
+            sqlite3_finalize(stmt1);
+        }
+        return count;
+    case (ExtendedStorage::Filter::ByJournal):
+        stmt1 = PREPARE(SELECT_COMPONENTS_BY_JOURNAL);
+        if (stmt1) {
+            count = d->loadIncidences(stmt1);
+            sqlite3_finalize(stmt1);
+        }
+        return count;
+    case (ExtendedStorage::Filter::Recursive):
+        stmt1 = PREPARE(SELECT_COMPONENTS_BY_RECURSIVE);
+        if (stmt1) {
+            count = d->loadIncidences(stmt1);
+            sqlite3_finalize(stmt1);
+        }
+        return count;
+    case (ExtendedStorage::Filter::ByGeoLocation): {
+        float deltaLatitude = static_cast<const GeoLocationFilter*>(&filter)->deltaLatitude();
+        float deltaLongitude = static_cast<const GeoLocationFilter*>(&filter)->deltaLongitude();
+        if (deltaLatitude >= 180.f && deltaLongitude >= 360.f) {
+            stmt1 = PREPARE(SELECT_COMPONENTS_BY_GEO);
+        } else {
+            float latitude = static_cast<const GeoLocationFilter*>(&filter)->latitude();
+            float longitude = static_cast<const GeoLocationFilter*>(&filter)->longitude();
+            stmt1 = PREPARE(SELECT_COMPONENTS_BY_GEO_AREA);
+            if (stmt1 && (sqlite3_bind_int64(stmt1, 1, latitude - deltaLatitude)
+                          || sqlite3_bind_int64(stmt1, 2, longitude - deltaLongitude)
+                          || sqlite3_bind_int64(stmt1, 3, latitude + deltaLatitude)
+                          || sqlite3_bind_int64(stmt1, 4, longitude + deltaLongitude))) {
+                qCWarning(lcMkcal) << sqlite3_errmsg(d->mDatabase);
+                sqlite3_finalize(stmt1);
+                stmt1 = nullptr;
+            }
+        }
+        if (stmt1) {
+            count = d->loadIncidences(stmt1);
+            sqlite3_finalize(stmt1);
+        }
+        return count;
     }
-    SL3_bind_int64(stmt1, index, secsStart);
-
-    count = d->loadIncidences(stmt1, limit, last, false);
-
-error:
-    return count;
+    case (ExtendedStorage::Filter::ByAttendee):
+        stmt1 = PREPARE(SELECT_COMPONENTS_BY_ATTENDEE);
+        if (stmt1) {
+            count = d->loadIncidences(stmt1);
+            sqlite3_finalize(stmt1);
+        }
+        return count;
+    default:
+        qCWarning(lcMkcal) << "unsupported filter type" << filter.type();
+        return count;
+    }
 }
 
-bool SqliteStorage::notifyOpened(const Incidence::Ptr &incidence)
+int SqliteStorage::loadSortedIncidences(const ExtendedStorage::SortedFilter &filter, int limit, QDateTime *last)
 {
-    Q_UNUSED(incidence);
-    return false;
+    if (!d->mDatabase) {
+        return -1;
+    }
+
+    int count = -1;
+    sqlite3_stmt *stmt1 = NULL;
+    qint64 secsStart = last && last->isValid() ? d->mFormat->toOriginTime(*last) : LLONG_MAX;
+
+#define PREPARE(Q) _prepare(d->mDatabase, Q, sizeof(Q))
+    switch (filter.type()) {
+    case (ExtendedStorage::Filter::SortedByDatetime):
+        stmt1 = PREPARE(filter.before()
+                        ? (filter.useDate() ? SELECT_COMPONENTS_BY_DATE_SMART
+                           : SELECT_COMPONENTS_BY_CREATED_SMART)
+                        : SELECT_COMPONENTS_BY_FUTURE_DATE_SMART);
+        if (stmt1 && !sqlite3_bind_int64(stmt1, 1, secsStart)) {
+            qCWarning(lcMkcal) << sqlite3_errmsg(d->mDatabase);
+            sqlite3_finalize(stmt1);
+            stmt1 = nullptr;
+        }
+        if (stmt1) {
+            if (filter.before()) {
+                count = d->loadIncidences(stmt1, limit, last, filter.useDate());
+            } else {
+                count = d->loadIncidences(stmt1, limit, last, true, true);
+            }
+            sqlite3_finalize(stmt1);
+        }
+        return count;
+    case (ExtendedStorage::Filter::ByJournal):
+        stmt1 = PREPARE(SELECT_COMPONENTS_BY_JOURNAL_DATE);
+        if (stmt1 && !sqlite3_bind_int64(stmt1, 1, secsStart)) {
+            qCWarning(lcMkcal) << sqlite3_errmsg(d->mDatabase);
+            sqlite3_finalize(stmt1);
+            stmt1 = nullptr;
+        }
+        if (stmt1) {
+            count = d->loadIncidences(stmt1, limit, last, true);
+            sqlite3_finalize(stmt1);
+        }
+        return count;
+    case (ExtendedStorage::Filter::ByTodo):
+        stmt1 = PREPARE(filter.useDate()
+                        ? SELECT_COMPONENTS_BY_COMPLETED_TODOS_AND_DATE
+                        : SELECT_COMPONENTS_BY_COMPLETED_TODOS_AND_CREATED);
+        if (stmt1 && !sqlite3_bind_int64(stmt1, 1, secsStart)) {
+            qCWarning(lcMkcal) << sqlite3_errmsg(d->mDatabase);
+            sqlite3_finalize(stmt1);
+            stmt1 = nullptr;
+        }
+        if (stmt1) {
+            count = d->loadIncidences(stmt1, limit, last, filter.useDate());
+            sqlite3_finalize(stmt1);
+        }
+        return count;
+    case (ExtendedStorage::Filter::ByGeoLocation):
+        stmt1 = PREPARE(filter.useDate() ? SELECT_COMPONENTS_BY_GEO_AND_DATE
+                        : SELECT_COMPONENTS_BY_GEO_AND_CREATED);
+        if (stmt1 && !sqlite3_bind_int64(stmt1, 1, secsStart)) {
+            qCWarning(lcMkcal) << sqlite3_errmsg(d->mDatabase);
+            sqlite3_finalize(stmt1);
+            stmt1 = nullptr;
+        }
+        if (stmt1) {
+            count = d->loadIncidences(stmt1, limit, last, filter.useDate());
+            sqlite3_finalize(stmt1);
+        }
+        return count;
+    case (ExtendedStorage::Filter::ByAttendee): {
+        const QString email = static_cast<const AttendeeFilter*>(&filter)->email();
+        if (email.isEmpty()) {
+            stmt1 = PREPARE(SELECT_COMPONENTS_BY_ATTENDEE_AND_CREATED);
+            if (stmt1 && sqlite3_bind_int64(stmt1, 1, secsStart)) {
+                qCWarning(lcMkcal) << sqlite3_errmsg(d->mDatabase);
+                sqlite3_finalize(stmt1);
+                stmt1 = nullptr;
+            }
+        } else {
+            QByteArray e = email.toUtf8();
+            stmt1 = PREPARE(SELECT_COMPONENTS_BY_ATTENDEE_EMAIL_AND_CREATED);
+            if (stmt1 && (sqlite3_bind_text(stmt1, 1, e, e.length(), NULL)
+                          || sqlite3_bind_int64(stmt1, 2, secsStart))) {
+                qCWarning(lcMkcal) << sqlite3_errmsg(d->mDatabase);
+                sqlite3_finalize(stmt1);
+                stmt1 = nullptr;
+            }
+        }
+        if (stmt1) {
+            count = d->loadIncidences(stmt1, limit, last, false);
+            sqlite3_finalize(stmt1);
+        }
+        return count;
+    }
+    default:
+        qCWarning(lcMkcal) << "unsupported sorted filter type" << filter.type();
+        return count;
+    }
 }
 
 int SqliteStorage::Private::loadIncidences(sqlite3_stmt *stmt1,
@@ -1054,8 +620,6 @@ int SqliteStorage::Private::loadIncidences(sqlite3_stmt *stmt1,
     if (last) {
         *last = date;
     }
-
-    sqlite3_finalize(stmt1);
 
     if (!mSem.release()) {
         qCWarning(lcMkcal) << "cannot release lock" << mDatabaseName << "error" << mSem.errorString();

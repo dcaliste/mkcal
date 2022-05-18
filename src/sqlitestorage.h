@@ -99,130 +99,9 @@ public:
 
     /**
       @copydoc
-      CalStorage::load()
-    */
-    bool load();
-
-    /**
-      @copydoc
-      ExtendedStorage::load(const QString &, const QDateTime &)
-    */
-    bool load(const QString &uid, const QDateTime &recurrenceId = QDateTime());
-
-    /**
-      @copydoc
-      ExtendedStorage::load(const QDate &)
-    */
-    bool load(const QDate &date);
-
-    /**
-      @copydoc
-      ExtendedStorage::load(const QDate &, const QDate &)
-    */
-    bool load(const QDate &start, const QDate &end);
-
-    /**
-      @copydoc
-      ExtendedStorage::loadSeries(const QString &)
-    */
-    bool loadSeries(const QString &uid);
-
-    /**
-      @copydoc
-      ExtendedStorage::loadIncidenceInstance(const QString &)
-    */
-    bool loadIncidenceInstance(const QString &instanceIdentifier);
-
-    /**
-      @copydoc
-      ExtendedStorage::loadNotebookIncidences(const QString &)
-    */
-    bool loadNotebookIncidences(const QString &notebookUid);
-
-    /**
-      @copydoc
-      ExtendedStorage::loadJournals()
-    */
-    bool loadJournals();
-
-    /**
-      @copydoc
-      ExtendedStorage::loadPlainIncidences()
-    */
-    bool loadPlainIncidences();
-
-    /**
-      @copydoc
-      ExtendedStorage::loadRecurringIncidences()
-    */
-    bool loadRecurringIncidences();
-
-    /**
-      @copydoc
-      ExtendedStorage::loadGeoIncidences()
-    */
-    bool loadGeoIncidences();
-
-    /**
-      @copydoc
-      ExtendedStorage::loadGeoIncidences(float, float, float, float)
-    */
-    bool loadGeoIncidences(float geoLatitude, float geoLongitude,
-                           float diffLatitude, float diffLongitude);
-
-    /**
-      @copydoc
-      ExtendedStorage::loadAttendeeIncidences()
-    */
-    bool loadAttendeeIncidences();
-
-    /**
-      @copydoc
-      ExtendedStorage::loadUncompletedTodos()
-    */
-    int loadUncompletedTodos();
-
-    /**
-      @copydoc
-      ExtendedStorage::loadCompletedTodos()
-    */
-    int loadCompletedTodos(bool hasDate, int limit, QDateTime *last);
-
-    /**
-      @copydoc
-      ExtendedStorage::loadIncidences( bool, bool, int, QDateTime* );
-    */
-    int loadIncidences(bool hasDate, int limit, QDateTime *last);
-
-    /**
-      @copydoc
-      ExtendedStorage::loadFutureIncidences( bool, int, QDateTime* );
-    */
-    int loadFutureIncidences(int limit, QDateTime *last);
-
-    /**
-      @copydoc
-      ExtendedStorage::loadGeoIncidences( bool, bool, int, QDateTime* );
-    */
-    int loadGeoIncidences(bool hasDate, int limit, QDateTime *last);
-
-    /**
-      @copydoc
       ExtendedStorage::loadContacts()
     */
     KCalendarCore::Person::List loadContacts();
-
-    /**
-      @copydoc
-      ExtendedStorage::loadContactIncidences( const KCalendarCore::Person & )
-    */
-    int loadContactIncidences(const KCalendarCore::Person &person, int limit, QDateTime *last);
-
-    /**
-      @copydoc
-      ExtendedStorage::loadJournals()
-    */
-    int loadJournals(int limit, QDateTime *last);
 
     /**
       @copydoc
@@ -334,6 +213,8 @@ public:
 protected:
     bool loadNotebooks(QList<Notebook> *notebooks, QString *defaultNotebookId);
     bool modifyNotebook(const Notebook &nb, DBOperation dbop);
+    int loadIncidences(const ExtendedStorage::Filter &filter = ExtendedStorage::Filter()) override;
+    int loadSortedIncidences(const ExtendedStorage::SortedFilter &filter = ExtendedStorage::SortedFilter(), int limit = -1, QDateTime *last = nullptr) override;
 
 private:
     //@cond PRIVATE
