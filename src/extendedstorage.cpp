@@ -428,7 +428,7 @@ void ExtendedStorage::setIsGeoCreatedLoaded(bool loaded)
 
 bool ExtendedStorage::load()
 {
-    bool success = loadIncidences() >= 0;
+    bool success = loadToCalendar() >= 0;
     setIsRecurrenceLoaded(success);
     if (success) {
         addLoadedRange(QDate(), QDate());
@@ -438,7 +438,7 @@ bool ExtendedStorage::load()
 
 bool ExtendedStorage::load(const QString &uid, const QDateTime &recurrenceId)
 {
-    return loadIncidences(IncidenceFilter(uid, recurrenceId)) >= 0;
+    return loadToCalendar(IncidenceFilter(uid, recurrenceId)) >= 0;
 }
 
 bool ExtendedStorage::load(const QDate &date)
@@ -458,7 +458,7 @@ bool ExtendedStorage::load(const QDate &start, const QDate &end)
     QDateTime loadStart;
     QDateTime loadEnd;
     if (getLoadDates(start, end, &loadStart, &loadEnd)) {
-        bool success = loadIncidences(RangeFilter(loadStart, loadEnd)) >= 0;
+        bool success = loadToCalendar(RangeFilter(loadStart, loadEnd)) >= 0;
         if (success) {
             addLoadedRange(loadStart.date(), loadEnd.date());
         }
@@ -473,7 +473,7 @@ bool ExtendedStorage::load(const QDate &start, const QDate &end)
 
 bool ExtendedStorage::loadSeries(const QString &uid)
 {
-    return loadIncidences(SeriesFilter(uid)) >= 0;
+    return loadToCalendar(SeriesFilter(uid)) >= 0;
 }
 
 bool ExtendedStorage::loadIncidenceInstance(const QString &instanceIdentifier)
@@ -505,17 +505,17 @@ bool ExtendedStorage::loadIncidenceInstance(const QString &instanceIdentifier)
 
 bool ExtendedStorage::loadNotebookIncidences(const QString &notebookUid)
 {
-    return loadIncidences(NotebookFilter(notebookUid)) >= 0;
+    return loadToCalendar(NotebookFilter(notebookUid)) >= 0;
 }
 
 bool ExtendedStorage::loadJournals()
 {
-    return loadIncidences(JournalFilter()) >= 0;
+    return loadToCalendar(JournalFilter()) >= 0;
 }
 
 bool ExtendedStorage::loadPlainIncidences()
 {
-    return loadIncidences(NoDateFilter()) >= 0;
+    return loadToCalendar(NoDateFilter()) >= 0;
 }
 
 bool ExtendedStorage::loadRecurringIncidences()
@@ -524,7 +524,7 @@ bool ExtendedStorage::loadRecurringIncidences()
         return true;
     }
 
-    bool success = loadIncidences(RecursiveFilter()) >= 0;
+    bool success = loadToCalendar(RecursiveFilter()) >= 0;
     setIsRecurrenceLoaded(success);
 
     return success;
@@ -532,19 +532,19 @@ bool ExtendedStorage::loadRecurringIncidences()
 
 bool ExtendedStorage::loadGeoIncidences()
 {
-    return loadIncidences(GeoLocationFilter()) >= 0;
+    return loadToCalendar(GeoLocationFilter()) >= 0;
 }
 
 bool ExtendedStorage::loadGeoIncidences(float geoLatitude, float geoLongitude,
                                       float diffLatitude, float diffLongitude)
 {
-    return loadIncidences(GeoLocationFilter(geoLatitude, geoLongitude,
+    return loadToCalendar(GeoLocationFilter(geoLatitude, geoLongitude,
                                             diffLatitude, diffLongitude)) >= 0;
 }
 
 bool ExtendedStorage::loadAttendeeIncidences()
 {
-    return loadIncidences(AttendeeFilter()) >= 0;
+    return loadToCalendar(AttendeeFilter()) >= 0;
 }
 
 int ExtendedStorage::loadUncompletedTodos()
@@ -553,7 +553,7 @@ int ExtendedStorage::loadUncompletedTodos()
         return 0;
     }
 
-    int count = loadIncidences(TodoFilter());
+    int count = loadToCalendar(TodoFilter());
     setIsUncompletedTodosLoaded(count >= 0);
     return count;
 }
@@ -566,7 +566,7 @@ int ExtendedStorage::loadCompletedTodos(bool hasDate, int limit, QDateTime *last
         return 0;
     }
 
-    int count = loadSortedIncidences(TodoFilter(hasDate), limit, last);
+    int count = loadSortedToCalendar(TodoFilter(hasDate), limit, last);
     if (count >= 0 && count < limit) {
         if (hasDate) {
             setIsCompletedTodosDateLoaded(true);
@@ -582,7 +582,7 @@ int ExtendedStorage::loadJournals(int limit, QDateTime *last)
     if (isJournalsLoaded())
         return 0;
 
-    int count = loadSortedIncidences(JournalFilter(), limit, last);
+    int count = loadSortedToCalendar(JournalFilter(), limit, last);
     if (count >= 0 && count < limit) {
         setIsJournalsLoaded(true);
     }
@@ -597,7 +597,7 @@ int ExtendedStorage::loadIncidences(bool hasDate, int limit, QDateTime *last)
         return 0;
     }
 
-    int count = loadSortedIncidences(SortedFilter(hasDate), limit, last);
+    int count = loadSortedToCalendar(SortedFilter(hasDate), limit, last);
     if (count >= 0 && count < limit) {
         if (hasDate) {
             setIsDateLoaded(true);
@@ -615,7 +615,7 @@ int ExtendedStorage::loadFutureIncidences(int limit, QDateTime *last)
         return 0;
     }
 
-    int count = loadSortedIncidences(SortedFilter(false, true), limit, last);
+    int count = loadSortedToCalendar(SortedFilter(false, true), limit, last);
     if (count >= 0 && count < limit) {
         setIsFutureDateLoaded(true);
     }
@@ -631,7 +631,7 @@ int ExtendedStorage::loadGeoIncidences(bool hasDate, int limit, QDateTime *last)
         return 0;
     }
 
-    int count = loadSortedIncidences(GeoLocationFilter(hasDate), limit, last);
+    int count = loadSortedToCalendar(GeoLocationFilter(hasDate), limit, last);
     if (count >= 0 && count < limit) {
         if (hasDate) {
             setIsGeoDateLoaded(true);
@@ -644,7 +644,71 @@ int ExtendedStorage::loadGeoIncidences(bool hasDate, int limit, QDateTime *last)
 
 int ExtendedStorage::loadContactIncidences(const Person &person, int limit, QDateTime *last)
 {
-    return loadSortedIncidences(AttendeeFilter(person.isEmpty() ? person.email() : QString()), limit, last);
+    return loadSortedToCalendar(AttendeeFilter(person.isEmpty() ? person.email() : QString()), limit, last);
+}
+
+bool ExtendedStorage::insertedIncidences(Incidence::List *list, const QDateTime &after,
+                                         const QString &notebookUid)
+{
+    return after.isValid() ? loadToList(list, InsertedFilter(after, notebookUid)) : false;
+}
+
+bool ExtendedStorage::modifiedIncidences(Incidence::List *list, const QDateTime &after,
+                                         const QString &notebookUid)
+{
+    return after.isValid() ? loadToList(list, ModifiedFilter(after, notebookUid)) : false;
+}
+
+bool ExtendedStorage::deletedIncidences(Incidence::List *list, const QDateTime &after,
+                                        const QString &notebookUid)
+{
+    return loadToList(list, DeletedFilter(after, notebookUid));
+}
+
+bool ExtendedStorage::allIncidences(Incidence::List *list, const QString &notebookUid)
+{
+    return notebookUid.isEmpty() ? loadToList(list) : loadToList(list, NotebookFilter(notebookUid));
+}
+
+bool ExtendedStorage::duplicateIncidences(Incidence::List *list, const Incidence::Ptr &incidence,
+                                          const QString &notebookUid)
+{
+    return incidence ? loadToList(list, DuplicateFilter(incidence->summary(), incidence->dtStart(), notebookUid)) : false;
+}
+
+int ExtendedStorage::loadToCalendar(const Filter &filter)
+{
+    QMultiHash<QString, Incidence::Ptr> incidences;
+    bool success = loadIncidences(&incidences, filter);
+    if (success && incidences.count())
+        setLoaded(incidences);
+    setFinished(success, QString());
+    return success ? incidences.count() : -1;
+}
+
+int ExtendedStorage::loadSortedToCalendar(const SortedFilter &filter, int limit, QDateTime *last)
+{
+    QMultiHash<QString, Incidence::Ptr> incidences;
+    bool success = loadSortedIncidences(&incidences, filter, limit, last);
+    if (success && incidences.count())
+        setLoaded(incidences);
+    setFinished(success, QString());
+    return success ? incidences.count() : -1;
+}
+
+bool ExtendedStorage::loadToList(Incidence::List *list, const Filter &filter) const
+{
+    if (!list)
+        return false;
+
+    QMultiHash<QString, Incidence::Ptr> incidences;
+    bool success = loadIncidences(&incidences, filter);
+    list->clear();
+    for(QMultiHash<QString, Incidence::Ptr>::ConstIterator it = incidences.constBegin();
+        it != incidences.constEnd(); it++) {
+        list->append(*it);
+    }
+    return success;
 }
 
 void ExtendedStorage::Private::calendarModified(bool modified, Calendar *calendar)

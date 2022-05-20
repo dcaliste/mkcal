@@ -141,42 +141,6 @@ public:
 
     /**
       @copydoc
-      ExtendedStorage::insertedIncidences()
-    */
-    bool insertedIncidences(KCalendarCore::Incidence::List *list, const QDateTime &after,
-                            const QString &notebookUid = QString());
-
-    /**
-      @copydoc
-      ExtendedStorage::modifiedIncidences()
-    */
-    bool modifiedIncidences(KCalendarCore::Incidence::List *list, const QDateTime &after,
-                            const QString &notebookUid = QString());
-
-    /**
-      @copydoc
-      ExtendedStorage::deletedIncidences()
-    */
-    bool deletedIncidences(KCalendarCore::Incidence::List *list,
-                           const QDateTime &after = QDateTime(),
-                           const QString &notebookUid = QString());
-
-    /**
-      @copydoc
-      ExtendedStorage::allIncidences()
-    */
-    bool allIncidences(KCalendarCore::Incidence::List *list, const QString &notebookUid = QString());
-
-    /**
-      @copydoc
-      ExtendedStorage::duplicateIncidences()
-    */
-    bool duplicateIncidences(KCalendarCore::Incidence::List *list,
-                             const KCalendarCore::Incidence::Ptr &incidence,
-                             const QString &notebookUid = QString());
-
-    /**
-      @copydoc
       ExtendedStorage::incidenceDeletedDate()
     */
     QDateTime incidenceDeletedDate(const KCalendarCore::Incidence::Ptr &incidence);
@@ -213,8 +177,8 @@ public:
 protected:
     bool loadNotebooks(QList<Notebook> *notebooks, QString *defaultNotebookId);
     bool modifyNotebook(const Notebook &nb, DBOperation dbop);
-    int loadIncidences(const ExtendedStorage::Filter &filter = ExtendedStorage::Filter()) override;
-    int loadSortedIncidences(const ExtendedStorage::SortedFilter &filter = ExtendedStorage::SortedFilter(), int limit = -1, QDateTime *last = nullptr) override;
+    bool loadIncidences(QMultiHash<QString, KCalendarCore::Incidence::Ptr> *incidences, const ExtendedStorage::Filter &filter = ExtendedStorage::Filter()) const override;
+    bool loadSortedIncidences(QMultiHash<QString, KCalendarCore::Incidence::Ptr> *incidences, const ExtendedStorage::SortedFilter &filter = ExtendedStorage::SortedFilter(), int limit = -1, QDateTime *last = nullptr) const override;
 
 private:
     //@cond PRIVATE

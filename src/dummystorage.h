@@ -72,41 +72,6 @@ public:
     {
         return true;
     }
-    void calendarModified(bool, const KCalendarCore::Calendar *) const
-    {
-    }
-    void calendarIncidenceAdded(const KCalendarCore::Incidence::Ptr &) const
-    {
-    }
-    void calendarIncidenceChanged(const KCalendarCore::Incidence::Ptr &) const
-    {
-    }
-    void calendarIncidenceDeleted(const KCalendarCore::Incidence::Ptr &) const
-    {
-    }
-    void calendarIncidenceAdditionCanceled(const KCalendarCore::Incidence::Ptr &) const
-    {
-    }
-    bool insertedIncidences(KCalendarCore::Incidence::List *, const QDateTime &, const QString &)
-    {
-        return true;
-    }
-    bool modifiedIncidences(KCalendarCore::Incidence::List *, const QDateTime &, const QString &)
-    {
-        return true;
-    }
-    bool deletedIncidences(KCalendarCore::Incidence::List *, const QDateTime &, const QString &)
-    {
-        return true;
-    }
-    bool allIncidences(KCalendarCore::Incidence::List *, const QString &)
-    {
-        return true;
-    }
-    bool duplicateIncidences(KCalendarCore::Incidence::List *, const KCalendarCore::Incidence::Ptr &, const QString &)
-    {
-        return true;
-    }
     bool loadNotebooks(QList<Notebook> *notebooks, QString *defaultNotebookId)
     {
         return true;
@@ -122,12 +87,12 @@ public:
     {
         return true;
     }
-    int loadIncidences(const ExtendedStorage::Filter &filter = ExtendedStorage::Filter())
+    bool loadIncidences(QMultiHash<QString, KCalendarCore::Incidence::Ptr> *incidences, const ExtendedStorage::Filter &filter = ExtendedStorage::Filter()) const
     {
         return true;
     }
-    int loadSortedIncidences(const ExtendedStorage::SortedFilter &filter = ExtendedStorage::SortedFilter(),
-                             int limit = -1, QDateTime *last = nullptr)
+    bool loadSortedIncidences(QMultiHash<QString, KCalendarCore::Incidence::Ptr> *incidences, const ExtendedStorage::SortedFilter &filter = ExtendedStorage::SortedFilter(),
+                             int limit = -1, QDateTime *last = nullptr) const
     {
         return true;
     }

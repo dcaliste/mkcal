@@ -381,7 +381,7 @@ public:
     */
     virtual bool insertedIncidences(KCalendarCore::Incidence::List *list,
                                     const QDateTime &after = QDateTime(),
-                                    const QString &notebookUid = QString()) = 0;
+                                    const QString &notebookUid = QString());
 
     /**
       Get modified incidences from storage.
@@ -395,7 +395,7 @@ public:
     */
     virtual bool modifiedIncidences(KCalendarCore::Incidence::List *list,
                                     const QDateTime &after = QDateTime(),
-                                    const QString &notebookUid = QString()) = 0;
+                                    const QString &notebookUid = QString());
 
     /**
       Get deleted incidences from storage.
@@ -407,7 +407,7 @@ public:
     */
     virtual bool deletedIncidences(KCalendarCore::Incidence::List *list,
                                    const QDateTime &after = QDateTime(),
-                                   const QString &notebookUid = QString()) = 0;
+                                   const QString &notebookUid = QString());
 
     /**
       Get all incidences from storage.
@@ -417,7 +417,7 @@ public:
       @return true if execution was scheduled; false otherwise
     */
     virtual bool allIncidences(KCalendarCore::Incidence::List *list,
-                               const QString &notebookUid = QString()) = 0;
+                               const QString &notebookUid = QString());
 
     /**
       Get possible duplicates for given incidence.
@@ -429,7 +429,7 @@ public:
     */
     virtual bool duplicateIncidences(KCalendarCore::Incidence::List *list,
                                      const KCalendarCore::Incidence::Ptr &incidence,
-                                     const QString &notebookUid = QString()) = 0;
+                                     const QString &notebookUid = QString());
 
     /**
       Get deletion time of incidence
@@ -606,7 +606,11 @@ protected:
             ByTodo,
             Recursive,
             ByGeoLocation,
-            ByAttendee
+            ByAttendee,
+            ByInsertedAfter,
+            ByModifiedAfter,
+            ByDeletedAfter,
+            ByDuplicated
         };
         Filter() {};
         virtual FilterType type() const { return None; };
@@ -620,6 +624,56 @@ protected:
         QString notebookUid() const { return mNotebookUid; };
     private:
         QString mNotebookUid;
+    };
+
+    class SinceFilter
+    {
+    public:
+        QDateTime since() const { return mSince; };
+    protected:
+        SinceFilter(const QDateTime &since) : mSince(since) {};
+    private:
+        QDateTime mSince;
+    };
+
+    class InsertedFilter: public NotebookFilter, public SinceFilter
+    {
+    public:
+        InsertedFilter(const QDateTime &since, const QString &notebookUid = QString())
+            : NotebookFilter(notebookUid), SinceFilter(since) {};
+        FilterType type() const { return ByInsertedAfter; };
+    };
+
+    class ModifiedFilter: public NotebookFilter, public SinceFilter
+    {
+    public:
+        ModifiedFilter(const QDateTime &since, const QString &notebookUid = QString())
+            : NotebookFilter(notebookUid), SinceFilter(since) {};
+        FilterType type() const { return ByModifiedAfter; };
+    };
+
+    class DeletedFilter: public NotebookFilter, public SinceFilter
+    {
+    public:
+        DeletedFilter(const QDateTime &since = QDateTime(),
+                      const QString &notebookUid = QString())
+            : NotebookFilter(notebookUid), SinceFilter(since) {};
+        FilterType type() const { return ByDeletedAfter; };
+    };
+
+    class DuplicateFilter: public NotebookFilter
+    {
+    public:
+        DuplicateFilter(const QString &summary,
+                        const QDateTime &at,
+                        const QString &notebookUid = QString())
+            : NotebookFilter(notebookUid), mAt(at), mSummary(summary) {};
+        FilterType type() const { return ByDuplicated; };
+        QDateTime at() const { return mAt; };
+        QString summary() const { return mSummary; };
+    private:
+        QDateTime mAt;
+        QString mSummary;
     };
 
     class IncidenceFilter: public Filter
@@ -741,17 +795,23 @@ protected:
                                  const QMultiHash<QString, KCalendarCore::Incidence::Ptr> &modifications,
                                  const QMultiHash<QString, KCalendarCore::Incidence::Ptr> &deletions,
                                  ExtendedStorage::DeleteAction deleteAction) = 0;
-    virtual int loadIncidences(const Filter &filter = Filter()) = 0;
-    virtual int loadSortedIncidences(const SortedFilter &filter = SortedFilter(),
-                                     int limit = -1, QDateTime *last = nullptr) = 0;
+    virtual bool loadIncidences(QMultiHash<QString, KCalendarCore::Incidence::Ptr> *incidences, const Filter &filter = Filter()) const = 0;
+    virtual bool loadSortedIncidences(QMultiHash<QString, KCalendarCore::Incidence::Ptr> *incidences,
+                                      const SortedFilter &filter = SortedFilter(),
+                                      int limit = -1, QDateTime *last = nullptr) const = 0;
 
     void setModified(const QString &info);
     void setFinished(bool error, const QString &info);
     void setUpdated(const KCalendarCore::Incidence::List &added,
                     const KCalendarCore::Incidence::List &modified,
                     const KCalendarCore::Incidence::List &deleted);
-    void setLoaded(const QMultiHash<QString, KCalendarCore::Incidence::Ptr> &incidences);
 private:
+    int loadToCalendar(const Filter &filter = Filter());
+    int loadSortedToCalendar(const SortedFilter &filter = SortedFilter(),
+                             int limit = -1, QDateTime *last = nullptr);
+    bool loadToList(KCalendarCore::Incidence::List *list, const Filter &filter = Filter()) const;
+    void setLoaded(const QMultiHash<QString, KCalendarCore::Incidence::Ptr> &incidences);
+
     bool getLoadDates(const QDate &start, const QDate &end,
                       QDateTime *loadStart, QDateTime *loadEnd) const;
 
