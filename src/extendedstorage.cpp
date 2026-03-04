@@ -75,8 +75,9 @@ bool operator<(const QDate &at, const Range &range)
 class mKCal::ExtendedStorage::Private: public AlarmHandler
 {
 public:
-    Private(ExtendedStorage *storage, bool validateNotebooks)
+    Private(ExtendedStorage *storage, ExtendedCalendar::Ptr calendar, bool validateNotebooks)
         : mStorage(storage)
+        , mCalendar(calendar)
         , mValidateNotebooks(validateNotebooks)
         , mIsRecurrenceLoaded(false)
     {}
@@ -85,6 +86,7 @@ public:
     {}
 
     ExtendedStorage *mStorage;
+    ExtendedCalendar::Ptr mCalendar;
     bool mValidateNotebooks;
     QList<Range> mRanges;
     bool mIsRecurrenceLoaded;
@@ -153,8 +155,7 @@ Incidence::List ExtendedStorage::Private::incidencesWithAlarms(const QString &no
 //@endcond
 
 ExtendedStorage::ExtendedStorage(const ExtendedCalendar::Ptr &cal, bool validateNotebooks)
-    : CalStorage(cal),
-      d(new ExtendedStorage::Private(this, validateNotebooks))
+    : d(new ExtendedStorage::Private(this, cal, validateNotebooks))
 {
     cal->registerObserver(this);
 }
@@ -163,6 +164,11 @@ ExtendedStorage::~ExtendedStorage()
 {
     calendar()->unregisterObserver(this);
     delete d;
+}
+
+ExtendedCalendar::Ptr ExtendedStorage::calendar() const
+{
+    return d->mCalendar;
 }
 
 bool ExtendedStorage::close()

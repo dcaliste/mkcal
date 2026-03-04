@@ -297,7 +297,7 @@ typedef struct ExpandedIncidenceValidity {
 } ExpandedIncidenceValidity;
 typedef QPair<ExpandedIncidenceValidity, KCalendarCore::Incidence::Ptr> ExpandedIncidence;
 typedef QVector<ExpandedIncidence> ExpandedIncidenceList;
-static ExpandedIncidenceList rawExpandedIncidences(const KCalendarCore::Calendar &calendar, const QDateTime &start, const QDateTime &end)
+static ExpandedIncidenceList rawExpandedIncidences(const ExtendedCalendar &calendar, const QDateTime &start, const QDateTime &end)
 {
     ExpandedIncidenceList eventList;
 
